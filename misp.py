@@ -6,9 +6,21 @@ import lxml
 from lxml import objectify
 import time
 import datetime
+import requests
+import os
 
+DEFAULT_MISP_URL = 'https://misp.internal'
 DEFAULT_ORG = 'ACME Corp.'
-DEFAULT_ORGC = 'ACME Corp.'
+DEFAULT_ORGC = DEFAULT_ORG
+MISP_API_KEY = open(os.path.join(os.environ['HOME'], '.misp_api_key')).read()
+MISP_SSL_CHAIN = '/etc/ssl/certs/ca-certificates.crt'
+
+# To remove this deprecation warning:
+# SecurityWarning: Certificate has no `subjectAltName`, falling back to check
+# for a `commonName` for now. This feature is being removed by major browsers
+# and deprecated by RFC 2818. (See https://github.com/shazow/urllib3/issues/497
+# for details.)
+requests.packages.urllib3.disable_warnings()
 
 class MispBaseObject(object):
     def __init__(self):
@@ -18,6 +30,12 @@ class MispBaseObject(object):
         self._distribution = None
         self._threat_level_id = None
         self._analysis = None
+
+    def to_xml(self):
+        obj = self.to_xml_object()
+        lxml.objectify.deannotate(obj, xsi_nil=True)
+        lxml.etree.cleanup_namespaces(obj)
+        return lxml.etree.tostring(obj)
 
     @property
     def uuid(self):
@@ -37,10 +55,6 @@ class MispBaseObject(object):
 
     @property
     def timestamp(self):
-        return self._timestamp
-
-    @property
-    def timestamp(self):
         if self._timestamp:
             return self._timestamp
         return int(time.time())
@@ -48,10 +62,12 @@ class MispBaseObject(object):
     @timestamp.setter
     def timestamp(self, value):
         val = None
-        if type(value) is int:
-            val = self._timestamp
+        if type(value) is int or type(value) is objectify.IntElement:
+            val = int(value)
         elif type(value) is datetime.datetime:
             val = int(time.mktime(value.timetuple()))
+        else:
+            raise ValueError('Invalid date type: %s' % type(value))
         self._timestamp = val
 
     @property
@@ -60,7 +76,7 @@ class MispBaseObject(object):
 
     @distribution.setter
     def distribution(self, value):
-        if not 0 >= int(value) <=3:
+        if int(value) not in [0, 1, 2, 3]:
             raise ValueError('Invalid distribution value for an attribute')
         self._distribution = value
 
@@ -70,9 +86,9 @@ class MispBaseObject(object):
 
     @threat_level_id.setter
     def threat_level_id(self, value):
-        if not 0 >= int(value) <= 4:
+        if int(value) not in [0, 1, 2, 3, 4]:
             raise ValueError('Invalid threat_level_id value for an attribute')
-        self._threat_level = value
+        self._threat_level_id = value
 
     @property
     def analysis(self):
@@ -80,14 +96,15 @@ class MispBaseObject(object):
 
     @analysis.setter
     def analysis(self, value):
-        if not 0 >= value <= 2:
+        if value and int(value) not in [0, 1, 2]:
             raise ValueError('Invalid analysis value for an attribute')
-        self._analysis = value
+        self._analysis = value or 0
 
 
 class MispEvent(MispBaseObject):
     def __init__(self):
         super(MispEvent, self).__init__()
+        self._id = None
         self._info = None
         self._org = None
         self._orgc = None
@@ -102,6 +119,15 @@ class MispEvent(MispBaseObject):
     @property
     def attribute_count(self):
         return len(self.attributes)
+
+    @property
+    def id(self):
+        return self._id
+
+    @id.setter
+    def id(self, value):
+        if value:
+            self._id = int(value)
 
     @property
     def info(self):
@@ -153,7 +179,7 @@ class MispEvent(MispBaseObject):
 
     @property
     def org(self):
-        return self._org
+        return self._org or DEFAULT_ORG
 
     @org.setter
     def org(self, value):
@@ -168,10 +194,12 @@ class MispEvent(MispBaseObject):
     @date.setter
     def date(self, value):
         val = None
-        if type(value) is int:
+        if type(value) is str or type(value) is objectify.StringElement:
             val = value
         elif type(value) is datetime.datetime:
             val = value.strftime('%Y-%m-%d')
+        else:
+            raise ValueError('Invalid date type: %s' % type(value))
         self._date = val
 
     @property
@@ -183,7 +211,7 @@ class MispEvent(MispBaseObject):
     @publish_timestamp.setter
     def publish_timestamp(self, value):
         val = None
-        if type(value) is int:
+        if type(value) is int or  type(value) is objectify.IntElement:
             val = value
         elif type(value) is datetime.datetime:
             val = int(time.mktime(value.timetuple()))
@@ -191,54 +219,74 @@ class MispEvent(MispBaseObject):
 
     @staticmethod
     def from_xml(s):
-        tree = ET.fromstring(s)
-        if tree.tag.lower() != 'event':
-            raise ValueError('Invalid Event XML')
-        m = MispEvent()
-        for element in tree:
-            if element.tag == 'uuid':
-                m.uuid = ''.join(element.itertext())
-            if element.tag == 'distribution':
-                m.distribution = ''.join(element.itertext())
-            if element.tag == 'threat_level_id':
-                m.threat_level_id = ''.join(element.itertext())
-            if element.tag == 'timestamp':
-                m.timestamp = ''.join(element.itertext())
-            if element.tag == 'publish_timestamp':
-                m.publish_timestamp = ''.join(element.itertext())
-            if element.tag == 'orgc':
-                m.orgc = ''.join(element.itertext())
-            if element.tag == 'org':
-                m.org = ''.join(element.itertext())
-            if element.tag == 'timestamp':
-                m.timestamp = ''.join(element.itertext())
-        return m
+        event = objectify.fromstring(s)
+        return MispEvent.from_xml_object(event)
 
-    def to_xml(self):
-        event = self.to_xml_object()
-        lxml.objectify.deannotate(event, xsi_nil=True)
-        lxml.etree.cleanup_namespaces(event)
-        return lxml.etree.tostring(event)
+    @staticmethod
+    def from_xml_object(obj):
+        if obj.tag.lower() != 'event':
+            raise ValueError('Invalid Event XML')
+        event = MispEvent()
+        for field in ['uuid', 'distribution', 'threat_level_id', 'org',
+                      'orgc', 'date', 'info', 'published', 'analysis',
+                      'timestamp', 'distribution', 'proposal_email_lock',
+                      'locked', 'publish_timestamp', 'id']:
+            val = getattr(obj, field)
+            setattr(event, field, val)
+        #for attr in self.attributes:
+        #    event.append(attr.to_xml_object())
+        return event
 
     def to_xml_object(self):
         event = objectify.Element('event')
         for field in ['uuid', 'distribution', 'threat_level_id', 'org',
-                      'orgc', 'date', 'info', 'published', 'attribute_count',
-                      'analysis', 'timestamp', 'distribution', 'proposal_email_lock',
-                      'locked', 'publish_timestamp']:
+                      'orgc', 'date', 'info', 'published', 'analysis',
+                      'timestamp', 'distribution', 'proposal_email_lock',
+                      'locked', 'publish_timestamp', 'id']:
             val = getattr(self, field)
             setattr(event, field, val)
         for attr in self.attributes:
             event.append(attr.to_xml_object())
         return event
 
+
+class MispTransportError(Exception):
+    pass
+
+
 class MispServer(object):
-    def do(self, http_method, url, body):
-        pass
-    def POST(url, body):
-        return self.do('POST', url, body)
-    def GET(url, body):
-        return self.do('GET', url, body)
+    def __init__(self):
+        self.url = DEFAULT_MISP_URL
+        self.headers = {
+            'Content-Type': 'application/xml',
+            'Accept': 'application/xml',
+            'Authorization': MISP_API_KEY
+        }
+        self.events = MispServer.Events(self)
+
+    def _absolute_url(self, path):
+        return self.url + path
+
+    def POST(self, path, body):
+        url = self._absolute_url(path)
+        requests.post(url, body, headers=self.headers, verify=True)
+
+    def GET(self, path):
+        url = self._absolute_url(path)
+        resp = requests.get(url, headers=self.headers, verify=MISP_SSL_CHAIN)
+        if resp.status_code != 200:
+            raise MispTransportError('GET %s: returned status=%d', path, resp.status_code)
+        return resp.content
+
+    class Events(object):
+        def __init__(self, server):
+            self.server = server
+
+        def get(self, evtid):
+            raw_evt = self.server.GET('/events/%d' % evtid)
+            response = objectify.fromstring(raw_evt)
+            return MispEvent.from_xml_object(response.Event)
+
 
 attr_categories = ['Internal reference', 'Targeting data', 'Antivirus detection',
            'Payload delivery', 'Payload installation', 'Artifacts dropped',
@@ -260,6 +308,17 @@ class MispAttribute(MispBaseObject):
         self._value = None
         self._category = None
         self._type = None
+        self._comment = None
+        self._to_ids = None
+        self._shadowattribute = None
+
+    @property
+    def comment(self):
+        return self._comment or ''
+
+    @comment.setter
+    def comment(self, value):
+        self._comment = value
 
     @property
     def value(self):
@@ -286,31 +345,95 @@ class MispAttribute(MispBaseObject):
         self._type = value
 
     @property
-    def ids(self):
-        return self._ids
+    def to_ids(self):
+        return self._to_ids
 
-    @ids.setter
-    def ids(self, value):
-        self._ids = value
+    @to_ids.setter
+    def to_ids(self, value):
+        self._to_ids = value
 
 
 class MispEventTest(unittest.TestCase):
     def test_good_xml(self):
-        s = '<event><uuid>3BEC4A95-46AD-4209-86A2-D2C77A55C8D2</uuid></event>'
+        s = r'''<Event>
+    <id>42</id>
+    <org>ACME and bro.</org>
+    <date>2015-10-20</date>
+    <threat_level_id>3</threat_level_id>
+    <info>AGNOSTIC PANDA</info>
+    <published>1</published>
+    <uuid>56278fd8-f2c0-4907-bcca-594e0a3ac101</uuid>
+    <attribute_count>8</attribute_count>
+    <analysis>2</analysis>
+    <timestamp>1445434988</timestamp>
+    <distribution>1</distribution>
+    <proposal_email_lock>0</proposal_email_lock>
+    <orgc>ACME Corporation</orgc>
+    <locked>0</locked>
+    <publish_timestamp>1445435155</publish_timestamp>
+    </Event>
+'''
         m = MispEvent.from_xml(s)
-        self.assertEquals(m.uuid, '3BEC4A95-46AD-4209-86A2-D2C77A55C8D2')
+        self.assertEquals(m.uuid, '56278fd8-f2c0-4907-bcca-594e0a3ac101')
+        self.assertEquals(m.id, 42)
+        self.assertEquals(m.org, 'ACME and bro.')
+        self.assertEquals(m.date, '2015-10-20')
+        self.assertEquals(m.threat_level_id, 3)
+        self.assertEquals(m.info, 'AGNOSTIC PANDA')
+        self.assertEquals(m.published, 1)
+        self.assertEquals(m.analysis, 2)
+        self.assertEquals(m.timestamp, 1445434988)
+        self.assertEquals(m.distribution, 1)
+        self.assertEquals(m.orgc, 'ACME Corporation')
+        self.assertEquals(m.locked, 0)
+        self.assertEquals(m.publish_timestamp, 1445435155)
+
+    def test_good_xml_full_generation(self):
+        s = r'''<Event>
+    <id>42</id>
+    <org>ACME and bro.</org>
+    <date>2015-10-20</date>
+    <threat_level_id>3</threat_level_id>
+    <info>AGNOSTIC PANDA</info>
+    <published>1</published>
+    <uuid>56278fd8-f2c0-4907-bcca-594e0a3ac101</uuid>
+    <attribute_count>8</attribute_count>
+    <analysis>2</analysis>
+    <timestamp>1445434988</timestamp>
+    <distribution>1</distribution>
+    <proposal_email_lock>0</proposal_email_lock>
+    <orgc>ACME Corporation</orgc>
+    <locked>0</locked>
+    <publish_timestamp>1445435155</publish_timestamp>
+    </Event>
+'''
+        m = MispEvent.from_xml(s)
+        new = m.to_xml()
+        m = MispEvent.from_xml(new)
+        self.assertEquals(m.uuid, '56278fd8-f2c0-4907-bcca-594e0a3ac101')
+        self.assertEquals(m.id, 42)
+        self.assertEquals(m.org, 'ACME and bro.')
+        self.assertEquals(m.date, '2015-10-20')
+        self.assertEquals(m.threat_level_id, 3)
+        self.assertEquals(m.info, 'AGNOSTIC PANDA')
+        self.assertEquals(m.published, 1)
+        self.assertEquals(m.analysis, 2)
+        self.assertEquals(m.timestamp, 1445434988)
+        self.assertEquals(m.distribution, 1)
+        self.assertEquals(m.orgc, 'ACME Corporation')
+        self.assertEquals(m.locked, 0)
+        self.assertEquals(m.publish_timestamp, 1445435155)
 
     def test_good_xml_generation(self):
         company = 'ACME Corporation'
         m = MispEvent()
         m.org = company
         serialized_evt = m.to_xml()
-        print serialized_evt
         obj = MispEvent.from_xml(serialized_evt)
         self.assertEquals(obj.org, company)
 
     def test_bad_xml(self):
-        with self.assertRaises(ET.ParseError):
+        with self.assertRaises(lxml.etree.XMLSyntaxError):
             MispEvent.from_xml('<foo')
 
     def test_good_time_format(self):
@@ -318,6 +441,7 @@ class MispEventTest(unittest.TestCase):
         d = datetime.datetime.now()
         m.publish_timestamp = d
         self.assertEquals(m.publish_timestamp, int(time.mktime(d.timetuple())))
+
 
 class MispAttrTest(unittest.TestCase):
     def test_bad_type(self):
@@ -344,6 +468,12 @@ class MispAttrTest(unittest.TestCase):
         attr = MispAttribute()
         with self.assertRaises(ValueError):
             attr.analysis = 5
+
+class MispServerTest(unittest.TestCase):
+    def test_get_event(self):
+        m = MispServer()
+        evt = m.events.get(12)
+        self.assertEquals(evt.id, 12)
 
 if __name__ == '__main__':
     unittest.main()
