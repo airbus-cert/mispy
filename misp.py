@@ -12,7 +12,7 @@ import os
 DEFAULT_MISP_URL = 'https://misp.internal'
 DEFAULT_ORG = 'ACME Corp.'
 DEFAULT_ORGC = DEFAULT_ORG
-MISP_API_KEY = open(os.path.join(os.environ['HOME'], '.misp_api_key')).read()
+MISP_API_KEY = open(os.path.join(os.environ['HOME'], '.misp_api_key')).read().strip()
 MISP_SSL_CHAIN = '/etc/ssl/certs/ca-certificates.crt'
 
 # To remove this deprecation warning:
@@ -135,7 +135,7 @@ class MispEvent(MispBaseObject):
 
     @info.setter
     def info(self, value):
-        self._info = str(value)
+        self._info = unicode(value)
 
     @property
     def orgc(self):
@@ -233,8 +233,13 @@ class MispEvent(MispBaseObject):
                       'locked', 'publish_timestamp', 'id']:
             val = getattr(obj, field)
             setattr(event, field, val)
-        #for attr in self.attributes:
-        #    event.append(attr.to_xml_object())
+        try:
+            for attr in obj.Attribute:
+                obj = MispAttribute.from_xml_object(attr)
+                event.attributes.append(obj)
+        except:
+            # No attribute, no worries
+            pass
         return event
 
     def to_xml_object(self):
@@ -269,7 +274,10 @@ class MispServer(object):
 
     def POST(self, path, body):
         url = self._absolute_url(path)
-        requests.post(url, body, headers=self.headers, verify=True)
+        resp = requests.post(url, data=body, headers=self.headers, verify=MISP_SSL_CHAIN)
+        if resp.status_code != 200:
+            raise MispTransportError('POST %s: returned status=%d', path, resp.status_code)
+        return resp.content
 
     def GET(self, path):
         url = self._absolute_url(path)
@@ -287,6 +295,52 @@ class MispServer(object):
             response = objectify.fromstring(raw_evt)
             return MispEvent.from_xml_object(response.Event)
 
+        def put(self, event):
+            raise NotImplemented()
+
+        def list(self, limit=10, sort=None):
+            # /events/index/limit:999.xml to get the 999 first records
+            # /events/index/sort:date/direction:desc.xml
+            raise NotImplemented()
+
+        def search(self, attr_type=None, tags=None, value=None,
+                  category=None, org=None, date_from=None, date_to=None,
+                  last=None, tag=None, quickfilter=None, evtid=None):
+            request = objectify.Element('request')
+            request.searchall = 1
+            if attr_type:
+                request.type = attr_type
+            if evtid:
+                request.evtid = evtid
+            if tags:
+                request.tags = tags
+            if value:
+                request.value = value
+            if category:
+                request.category = category
+            if org:
+                request.org = org
+            if date_to:
+                request.date_to = date_to
+            if date_from:
+                request.date_from = date_from
+            if last:
+                request.last = last
+            if quickfilter:
+                request.quickfilter = quickfilter
+
+            lxml.objectify.deannotate(request, xsi_nil=True)
+            lxml.etree.cleanup_namespaces(request)
+            raw = lxml.etree.tostring(request)
+            raw = self.server.POST('/events/restSearch/download', raw)
+            response = objectify.fromstring(raw)
+            events=[]
+            for evtobj in response.Event:
+                events.append(MispEvent.from_xml_object(evtobj))
+            return events
+
+    class Attributes(object):
+        pass
 
 attr_categories = ['Internal reference', 'Targeting data', 'Antivirus detection',
            'Payload delivery', 'Payload installation', 'Artifacts dropped',
@@ -311,6 +365,15 @@ class MispAttribute(MispBaseObject):
         self._comment = None
         self._to_ids = None
         self._shadowattribute = None
+        self._id = None
+
+    @property
+    def id(self):
+        return self._id or 0
+
+    @id.setter
+    def id(self, value):
+        self._id = value
 
     @property
     def comment(self):
@@ -323,6 +386,10 @@ class MispAttribute(MispBaseObject):
     @property
     def value(self):
         return self._value
+
+    @value.setter
+    def value(self, value):
+        self._value = value
 
     @property
     def category(self):
@@ -351,6 +418,36 @@ class MispAttribute(MispBaseObject):
     @to_ids.setter
     def to_ids(self, value):
         self._to_ids = value
+
+    @property
+    def shadowattribute(self):
+        return None
+
+    @staticmethod
+    def from_xml(s):
+        attr = objectify.fromstring(s)
+        return MispAttribute.from_xml_object(attr)
+
+    @staticmethod
+    def from_xml_object(obj):
+        if obj.tag.lower() != 'attribute':
+            raise ValueError('Invalid Attribute XML')
+        attr = MispAttribute()
+        for field in ['uuid', 'distribution', 'type', 'category',
+                      'timestamp', 'to_ids', 'comment', 'value',
+                      'event_id', 'id']:
+            val = getattr(obj, field)
+            setattr(attr, field, val)
+        return attr
+
+    def to_xml_object(self):
+        attr = objectify.Element('attribute')
+        for field in ['uuid', 'distribution', 'type', 'category',
+                      'timestamp', 'to_ids', 'comment', 'value',
+                      'event_id', 'id']:
+            val = getattr(self, field)
+            setattr(attr, field, val)
+        return attr
 
 
 class MispEventTest(unittest.TestCase):
@@ -444,10 +541,59 @@ class MispEventTest(unittest.TestCase):
 
 
 class MispAttrTest(unittest.TestCase):
-    def test_bad_type(self):
-        attr = MispAttribute()
-        with self.assertRaises(ValueError):
-            attr.type = 'foobar'
+    def test_fromtofrom_xml(self):
+        s = r'''<Attribute>
+      <id>87183</id>
+      <type>regkey|value</type>
+      <category>Persistence mechanism</category>
+      <to_ids>1</to_ids>
+      <uuid>562795f9-5723-4b96-8940-599b0a3ac101</uuid>
+      <event_id>486</event_id>
+      <distribution>1</distribution>
+      <timestamp>1445434872</timestamp>
+      <comment>loooool</comment>
+      <value>lol</value>
+      <ShadowAttribute/>
+    </Attribute>'''
+        a = MispAttribute.from_xml(s)
+        s = a.to_xml()
+        a = MispAttribute.from_xml(s)
+        self.assertEquals(a.id, 87183)
+        self.assertEquals(a.type, 'regkey|value')
+        self.assertEquals(a.category, 'Persistence mechanism')
+        self.assertEquals(a.to_ids, 1)
+        self.assertEquals(a.uuid, '562795f9-5723-4b96-8940-599b0a3ac101')
+        self.assertEquals(a.event_id, 486)
+        self.assertEquals(a.distribution, 1)
+        self.assertEquals(a.timestamp, 1445434872)
+        self.assertEquals(a.comment, 'loooool')
+        self.assertEquals(a.value, 'lol')
+    
+    def test_from_xml(self):
+        s = r'''<Attribute>
+      <id>87183</id>
+      <type>regkey|value</type>
+      <category>Persistence mechanism</category>
+      <to_ids>1</to_ids>
+      <uuid>562795f9-5723-4b96-8940-599b0a3ac101</uuid>
+      <event_id>486</event_id>
+      <distribution>1</distribution>
+      <timestamp>1445434872</timestamp>
+      <comment>loooool</comment>
+      <value>lol</value>
+      <ShadowAttribute/>
+    </Attribute>'''
+        a = MispAttribute.from_xml(s)
+        self.assertEquals(a.id, 87183)
+        self.assertEquals(a.type, 'regkey|value')
+        self.assertEquals(a.category, 'Persistence mechanism')
+        self.assertEquals(a.to_ids, 1)
+        self.assertEquals(a.uuid, '562795f9-5723-4b96-8940-599b0a3ac101')
+        self.assertEquals(a.event_id, 486)
+        self.assertEquals(a.distribution, 1)
+        self.assertEquals(a.timestamp, 1445434872)
+        self.assertEquals(a.comment, 'loooool')
+        self.assertEquals(a.value, 'lol')
 
     def test_bad_category(self):
         attr = MispAttribute()
@@ -469,11 +615,21 @@ class MispAttrTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             attr.analysis = 5
 
+    def test_good_inner_attribute(self):
+        attr = MispAttribute()
+
+
 class MispServerTest(unittest.TestCase):
     def test_get_event(self):
         m = MispServer()
         evt = m.events.get(12)
         self.assertEquals(evt.id, 12)
+    def test_search_event(self):
+        m = MispServer()
+        evt=m.events.search(value='google.com')
+        self.assertEquals(len(evt), 1)
+        self.assertEquals(evt[0].id, 12)
+
 
 if __name__ == '__main__':
     unittest.main()
