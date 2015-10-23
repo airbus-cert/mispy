@@ -82,17 +82,17 @@ class MispBaseObject(object):
 
     @property
     def threat_level_id(self):
-        return self._threat_level_id or 0
+        return self._threat_level_id or 1
 
     @threat_level_id.setter
     def threat_level_id(self, value):
-        if int(value) not in [0, 1, 2, 3, 4]:
+        if int(value) not in [1, 2, 3, 4]:
             raise ValueError('Invalid threat_level_id value for an attribute')
         self._threat_level_id = value
 
     @property
     def analysis(self):
-        return self._analysis
+        return self._analysis or 0
 
     @analysis.setter
     def analysis(self, value):
@@ -115,6 +115,7 @@ class MispEvent(MispBaseObject):
         self._publish_timestamp = None
         self._published = None
         self._attributes = []
+        self._ShadowAttribute = None
 
     @property
     def attribute_count(self):
@@ -152,6 +153,10 @@ class MispEvent(MispBaseObject):
     @published.setter
     def published(self, value):
         self._published = value
+
+    @property
+    def ShadowAttribute(self):
+        return self._ShadowAttribute
 
     @property
     def attributes(self):
@@ -243,11 +248,11 @@ class MispEvent(MispBaseObject):
         return event
 
     def to_xml_object(self):
-        event = objectify.Element('event')
+        event = objectify.Element('Event')
         for field in ['uuid', 'distribution', 'threat_level_id', 'org',
                       'orgc', 'date', 'info', 'published', 'analysis',
                       'timestamp', 'distribution', 'proposal_email_lock',
-                      'locked', 'publish_timestamp', 'id']:
+                      'locked', 'publish_timestamp', 'id', 'ShadowAttribute']:
             val = getattr(self, field)
             setattr(event, field, val)
         for attr in self.attributes:
@@ -296,7 +301,17 @@ class MispServer(object):
             return MispEvent.from_xml_object(response.Event)
 
         def put(self, event):
-            raise NotImplemented()
+            if not event.id:
+                lastevent = self.last()
+                event.id = lastevent.id+1 # XXX: race-condition possible
+            raw_evt = event.to_xml()
+            print raw_evt
+            self.server.POST('/events', raw_evt)
+
+        def last(self):
+            raw = self.server.GET('/events/index/sort:id/direction:desc/limit:1.xml')
+            response = objectify.fromstring(raw)
+            return MispEvent.from_xml_object(response.Event)
 
         def list(self, limit=10, sort=None):
             # /events/index/limit:999.xml to get the 999 first records
@@ -364,8 +379,9 @@ class MispAttribute(MispBaseObject):
         self._type = None
         self._comment = None
         self._to_ids = None
-        self._shadowattribute = None
+        self._ShadowAttribute = None
         self._id = None
+        self._event_id = None
 
     @property
     def id(self):
@@ -382,6 +398,14 @@ class MispAttribute(MispBaseObject):
     @comment.setter
     def comment(self, value):
         self._comment = value
+
+    @property
+    def event_id(self):
+        return self._event_id
+
+    @event_id.setter
+    def event_id(self, value):
+        self._event_id = value
 
     @property
     def value(self):
@@ -420,7 +444,7 @@ class MispAttribute(MispBaseObject):
         self._to_ids = value
 
     @property
-    def shadowattribute(self):
+    def ShadowAttribute(self):
         return None
 
     @staticmethod
@@ -622,14 +646,40 @@ class MispAttrTest(unittest.TestCase):
 class MispServerTest(unittest.TestCase):
     def test_get_event(self):
         m = MispServer()
-        evt = m.events.get(12)
-        self.assertEquals(evt.id, 12)
+        evt = m.events.get(TEST_EVT_ID)
+        self.assertEquals(evt.id, TEST_EVT_ID)
+
     def test_search_event(self):
         m = MispServer()
-        evt=m.events.search(value='google.com')
+        evt=m.events.search(value=TEST_NEEDLE)
         self.assertEquals(len(evt), 1)
-        self.assertEquals(evt[0].id, 12)
+        self.assertEquals(evt[0].id, TEST_EVT_ID)
+        ok=False
+        for event in evt:
+            for attr in event.attributes:
+                if attr.value == TEST_NEEDLE:
+                    ok=True
+                    break
+        self.assertEquals(ok, True)
 
+    def disabled_test_last(self):
+        m = MispServer()
+        self.assertEquals(m.events.last().id, TEST_LAST_EVT_ID)
+
+    def test_create_event(self):
+        m = MispServer()
+        e = MispEvent()
+        e.info = 'Hello world'
+        e.orgc = DEFAULT_ORGC
+        e.org = DEFAULT_ORG
+        e.published = 0
+        e.distribution = 0
+        m.events.put(e)
+        a = MispAttribute()
+        a.value='xxgoogle.com'
+        a.category = 'Network activity'
+        a.type = 'domain'
+        e.attributes.append(a)
 
 if __name__ == '__main__':
     unittest.main()
