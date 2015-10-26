@@ -335,14 +335,13 @@ class MispServer(object):
             self.server.POST('/events', raw_evt)
 
         def last(self):
+            return self.list(limit=1, direction='desc')
+
+        def list(self, limit=10, sort='date', direction='asc'):
+            url = '/events/index/sort:%s/direction:%s/limit:%d' % (sort, direction, limit)
             raw = self.server.GET('/events/index/sort:id/direction:desc/limit:1.xml')
             response = objectify.fromstring(raw)
             return MispEvent.from_xml_object(response.Event)
-
-        def list(self, limit=10, sort=None):
-            # /events/index/limit:999.xml to get the 999 first records
-            # /events/index/sort:date/direction:desc.xml
-            raise NotImplemented()
 
         def search(self, attr_type=None, tags=None, value=None,
                   category=None, org=None, date_from=None, date_to=None,
