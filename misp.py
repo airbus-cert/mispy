@@ -10,6 +10,11 @@ import uuid
 import requests
 import os
 
+TEST_NEEDLE = '68b329da9893e34099c7d8ad5cb9c940'
+TEST_EVT_ID = 540
+TEST_ATTR_ID = 87516
+TEST_LAST_EVT_ID = 534
+
 DEFAULT_MISP_URL = 'https://misp.internal'
 DEFAULT_ORG = 'ACME Corp.'
 DEFAULT_ORGC = DEFAULT_ORG
