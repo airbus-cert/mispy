@@ -6,6 +6,7 @@ import lxml
 from lxml import objectify
 import time
 import datetime
+import uuid
 import requests
 import os
 
@@ -102,6 +103,33 @@ class MispBaseObject(object):
 
 
 class MispEvent(MispBaseObject):
+    class Attributes(object):
+        def __init__(self, event):
+            self.event = event
+            self._attributes = []
+
+        def add(self, attr):
+            if type(attr) is not MispAttribute:
+                raise ValueError("event.attributes.add() only takes MispAttribute instance")
+            self.event.timestamp = datetime.datetime.now()
+            if not attr.uuid:
+                attr.uuid = uuid.uuid4()
+            attr.event_id = self.event.id
+            attr.timestamp = self.event.timestamp+1
+            self._attributes.append(attr)
+
+        def remove(self, attribute):
+            raise NotImplemented('Cannot remove attribute yet')
+
+        def __iter__(self):
+            return self._attributes.__iter__()
+
+        def __len__(self):
+            return len(self._attributes)
+
+        def set(self, val):
+            self._attributes = val
+
     def __init__(self):
         super(MispEvent, self).__init__()
         self._id = None
@@ -114,7 +142,7 @@ class MispEvent(MispBaseObject):
         self._date = None
         self._publish_timestamp = None
         self._published = None
-        self._attributes = []
+        self.attributes = MispEvent.Attributes(self)
         self._ShadowAttribute = None
 
     @property
@@ -157,14 +185,6 @@ class MispEvent(MispBaseObject):
     @property
     def ShadowAttribute(self):
         return self._ShadowAttribute
-
-    @property
-    def attributes(self):
-        return self._attributes
-
-    @attributes.setter
-    def attributes(self, value):
-        self._attributes = value
 
     @property
     def locked(self):
@@ -239,9 +259,11 @@ class MispEvent(MispBaseObject):
             val = getattr(obj, field)
             setattr(event, field, val)
         try:
+            attributes = []
             for attr in obj.Attribute:
                 obj = MispAttribute.from_xml_object(attr)
-                event.attributes.append(obj)
+                attributes.append(obj)
+            event.attributes.set(attributes)
         except:
             # No attribute, no worries
             pass
@@ -252,7 +274,8 @@ class MispEvent(MispBaseObject):
         for field in ['uuid', 'distribution', 'threat_level_id', 'org',
                       'orgc', 'date', 'info', 'published', 'analysis',
                       'timestamp', 'distribution', 'proposal_email_lock',
-                      'locked', 'publish_timestamp', 'id', 'ShadowAttribute']:
+                      'locked', 'publish_timestamp', 'id', 'ShadowAttribute',
+                      'attribute_count']:
             val = getattr(self, field)
             setattr(event, field, val)
         for attr in self.attributes:
@@ -300,12 +323,15 @@ class MispServer(object):
             response = objectify.fromstring(raw_evt)
             return MispEvent.from_xml_object(response.Event)
 
+        def update(self, event):
+            raw_evt = event.to_xml()
+            self.server.POST('/events/%d' % event.id, raw_evt)
+
         def put(self, event):
             if not event.id:
                 lastevent = self.last()
                 event.id = lastevent.id+1 # XXX: race-condition possible
             raw_evt = event.to_xml()
-            print raw_evt
             self.server.POST('/events', raw_evt)
 
         def last(self):
@@ -437,7 +463,7 @@ class MispAttribute(MispBaseObject):
 
     @property
     def to_ids(self):
-        return self._to_ids
+        return self._to_ids or 0
 
     @to_ids.setter
     def to_ids(self, value):
@@ -465,10 +491,10 @@ class MispAttribute(MispBaseObject):
         return attr
 
     def to_xml_object(self):
-        attr = objectify.Element('attribute')
-        for field in ['uuid', 'distribution', 'type', 'category',
-                      'timestamp', 'to_ids', 'comment', 'value',
-                      'event_id', 'id']:
+        attr = objectify.Element('Attribute')
+        for field in ['distribution', 'type', 'category',
+                      'to_ids', 'comment', 'value',
+                      'event_id', 'timestamp', 'uuid', 'id']:
             val = getattr(self, field)
             setattr(attr, field, val)
         return attr
@@ -675,11 +701,18 @@ class MispServerTest(unittest.TestCase):
         e.published = 0
         e.distribution = 0
         m.events.put(e)
+
+    def test_modify_event(self):
+        m = MispServer()
+        e = m.events.get(TEST_EVT_ID)
         a = MispAttribute()
-        a.value='xxgoogle.com'
+        a.value='foobar%d.com' % time.time()
+        a.comment='evil domain'
         a.category = 'Network activity'
         a.type = 'domain'
-        e.attributes.append(a)
+        e.attributes.add(a)
+        m.events.update(e)
+
 
 if __name__ == '__main__':
     unittest.main()
