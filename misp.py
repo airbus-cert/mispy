@@ -352,7 +352,6 @@ class MispServer(object):
                   category=None, org=None, date_from=None, date_to=None,
                   last=None, tag=None, quickfilter=None, evtid=None):
             request = objectify.Element('request')
-            request.searchall = 1
             if attr_type:
                 request.type = attr_type
             if evtid:
