@@ -301,6 +301,7 @@ class MispServer(object):
             'Authorization': MISP_API_KEY
         }
         self.events = MispServer.Events(self)
+        self.attributes = MispServer.Attributes(self)
 
     def _absolute_url(self, path):
         return self.url + path
@@ -319,6 +320,24 @@ class MispServer(object):
             raise MispTransportError('GET %s: returned status=%d', path, resp.status_code)
         return resp.content
 
+    class Attributes(object):
+        def __init__(self, server):
+            self.server = server
+
+        def get(self, id):
+            resp = self.server.GET('/attributes/%d' % id)
+            response = objectify.fromstring(raw)
+            return MispAttribute.from_xml_object(response.Attribute)
+
+        def update(self, attr):
+            assert attr is not MispAttribute
+            attr.timestamp = datetime.datetime.now()
+            raw = attr.to_xml()
+            raw = self.server.POST('/attributes/%d' % attr.id, raw)
+
+        def search(self):
+            raise NotImplemented()
+
     class Events(object):
         def __init__(self, server):
             self.server = server
@@ -329,6 +348,8 @@ class MispServer(object):
             return MispEvent.from_xml_object(response.Event)
 
         def update(self, event):
+            event.timestamp = datetime.datetime.now()
+            event.published=0
             raw_evt = event.to_xml()
             self.server.POST('/events/%d' % event.id, raw_evt)
 
@@ -352,6 +373,7 @@ class MispServer(object):
                   category=None, org=None, date_from=None, date_to=None,
                   last=None, tag=None, quickfilter=None, evtid=None):
             request = objectify.Element('request')
+            #request.searchall = 1
             if attr_type:
                 request.type = attr_type
             if evtid:
@@ -383,8 +405,6 @@ class MispServer(object):
                 events.append(MispEvent.from_xml_object(evtobj))
             return events
 
-    class Attributes(object):
-        pass
 
 attr_categories = ['Internal reference', 'Targeting data', 'Antivirus detection',
            'Payload delivery', 'Payload installation', 'Artifacts dropped',
@@ -716,6 +736,17 @@ class MispServerTest(unittest.TestCase):
         e.attributes.add(a)
         m.events.update(e)
 
+    def test_modify_attr(self):
+        m = MispServer()
+        event = m.events.get(TEST_EVT_ID)
+        updateme=None
+        for attr in event.attributes:
+            if str(attr.value).startswith('tata'):
+                updateme=attr
+                break
+        self.assertIsNotNone(updateme)
+        updateme.comment='Hello; %s' % datetime.datetime.now()
+        m.attributes.update(updateme)
 
 if __name__ == '__main__':
     unittest.main()
