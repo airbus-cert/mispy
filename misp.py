@@ -148,7 +148,7 @@ class MispEvent(MispBaseObject):
         self._publish_timestamp = None
         self._published = None
         self.attributes = MispEvent.Attributes(self)
-        self._ShadowAttribute = None
+        self.shadowattributes = []
 
     @property
     def attribute_count(self):
@@ -186,10 +186,6 @@ class MispEvent(MispBaseObject):
     @published.setter
     def published(self, value):
         self._published = value
-
-    @property
-    def ShadowAttribute(self):
-        return self._ShadowAttribute
 
     @property
     def locked(self):
@@ -266,11 +262,18 @@ class MispEvent(MispBaseObject):
         try:
             attributes = []
             for attr in obj.Attribute:
-                obj = MispAttribute.from_xml_object(attr)
-                attributes.append(obj)
+                attr_obj = MispAttribute.from_xml_object(attr)
+                attributes.append(attr_obj)
             event.attributes.set(attributes)
         except:
             # No attribute, no worries
+            pass
+
+        try:
+            for shadowattribute in obj.ShadowAttribute:
+                shadowattribute_obj = MispShadowAttribute.from_xml_object(shadowattribute)
+                event.shadowattributes.append(shadowattribute_obj)
+        except Exception as err:
             pass
         return event
 
@@ -283,6 +286,8 @@ class MispEvent(MispBaseObject):
                       'attribute_count']:
             val = getattr(self, field)
             setattr(event, field, val)
+        for shadowattribute in event.shadowattributes:
+            event.append(shadowattribute.to_xml_object())
         for attr in self.attributes:
             event.append(attr.to_xml_object())
         return event
@@ -302,6 +307,7 @@ class MispServer(object):
         }
         self.events = MispServer.Events(self)
         self.attributes = MispServer.Attributes(self)
+        self.shadowattributes = MispServer.ShadowAttributes(self)
 
     def _absolute_url(self, path):
         return self.url + path
@@ -319,6 +325,38 @@ class MispServer(object):
         if resp.status_code != 200:
             raise MispTransportError('GET %s: returned status=%d', path, resp.status_code)
         return resp.content
+
+    class ShadowAttributes(object):
+        def __init__(self, server):
+            self.server = server
+
+        def get(self, shadowattributeid):
+            raw = self.server.GET('/shadow_attributes/view/%d' % shadowattributeid)
+            response = objectify.fromstring(raw)
+            return MispShadowAttribute.from_xml_object(response.ShadowAttribute)
+
+        def add(self, event, shadowattribute):
+            assert shadowattribute is not MispShadowAttribute
+            assert event is not MispEvent
+            raw = shadowattribute.to_xml()
+            raw = self.server.POST('/shadow_attributes/add/%d' % event.id, raw)
+            response = objectify.fromstring(raw)
+            return MispShadowAttribute.from_xml_object(response.ShadowAttribute)
+
+        def update(self, attr):
+            assert attr is not MispShadowAttribute
+            raw = attr.to_xml()
+            raw = self.server.POST('/shadow_attributes/edit/%d' % attr.id, raw)
+            response = objectify.fromstring(raw)
+            return MispShadowAttribute.from_xml_object(response.ShadowAttribute)
+
+        def accept(self, shadowattribute):
+            assert shadowattribute is not MispShadowAttribute
+            raw = self.server.POST('/shadow_attributes/accept/%d' % shadowattribute.id, '')
+
+        def discard(self, shadowattribute):
+            assert shadowattribute is not MispShadowAttribute
+            raw = self.server.POST('/shadow_attributes/discard/%d' % shadowattribute.id, '')
 
     class Attributes(object):
         def __init__(self, server):
@@ -523,6 +561,32 @@ class MispAttribute(MispBaseObject):
         return attr
 
 
+class MispShadowAttribute(MispAttribute):
+    def __init__(self):
+        super(MispShadowAttribute, self).__init__()
+
+    @staticmethod
+    def from_xml(s):
+        attr = objectify.fromstring(s)
+        return MispShadowAttribute.from_xml_object(attr)
+
+    @staticmethod
+    def from_xml_object(obj):
+        if obj.tag.lower() != 'shadowattribute':
+            raise ValueError('Invalid ShadowAttribute XML (tag="%s")' % obj.tag.lower())
+        shadowattribute = MispShadowAttribute()
+        for field in ['type', 'category', 'to_ids', 'comment', 'value', 'id']:
+            val = getattr(obj, field)
+            setattr(shadowattribute, field, val)
+        return shadowattribute
+
+    def to_xml_object(self):
+        attr = objectify.Element('ShadowAttribute')
+        for field in ['type', 'category', 'to_ids', 'comment', 'value']:
+            val = getattr(self, field)
+            setattr(attr, field, val)
+        return attr
+
 class MispEventTest(unittest.TestCase):
     def test_good_xml(self):
         s = r'''<Event>
@@ -715,7 +779,7 @@ class MispServerTest(unittest.TestCase):
         m = MispServer()
         self.assertEquals(m.events.last().id, TEST_LAST_EVT_ID)
 
-    def test_create_event(self):
+    def disabled_test_create_event(self):
         m = MispServer()
         e = MispEvent()
         e.info = 'Hello world'
@@ -728,6 +792,7 @@ class MispServerTest(unittest.TestCase):
     def test_modify_event(self):
         m = MispServer()
         e = m.events.get(TEST_EVT_ID)
+        e.timestamp = datetime.datetime.now()
         a = MispAttribute()
         a.value='foobar%d.com' % time.time()
         a.comment='evil domain'
