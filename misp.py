@@ -1,5 +1,15 @@
 #! /usr/bin/env python
 
+"""
+    misp
+    ~~~~
+
+    Interface module to MISP servers (https://github.com/MISP/MISP).
+
+    :copyright: Nicolas Bareil
+    :license: Apache Licence, Version 2.0
+
+"""
 #    This file is part of python-misp.
 #
 #   Copyright 2015 Nicolas Bareil <nicolas.bareil@airbus.com>
@@ -17,8 +27,6 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-import unittest
-import xml.etree.ElementTree as ET
 import lxml
 from lxml import objectify
 import time
@@ -35,7 +43,11 @@ TEST_LAST_EVT_ID = 534
 DEFAULT_MISP_URL = 'https://misp.internal'
 DEFAULT_ORG = 'ACME Corp.'
 DEFAULT_ORGC = DEFAULT_ORG
-MISP_API_KEY = open(os.path.join(os.environ['HOME'], '.misp_api_key')).read().strip()
+try:
+    MISP_API_KEY = open(os.path.join(os.environ['HOME'], '.misp_api_key')).read().strip()
+except IOError:
+    MISP_API_KEY = 'abcdefghighklmnopqrst'
+
 MISP_SSL_CHAIN = '/etc/ssl/certs/ca-certificates.crt'
 
 # To remove this deprecation warning:
@@ -46,6 +58,10 @@ MISP_SSL_CHAIN = '/etc/ssl/certs/ca-certificates.crt'
 requests.packages.urllib3.disable_warnings()
 
 class MispBaseObject(object):
+    """
+    Inherited module regrouping shared variables.
+
+    """
     def __init__(self):
         self._uuid = None
         self._timestamp = None
@@ -126,11 +142,34 @@ class MispBaseObject(object):
 
 class MispEvent(MispBaseObject):
     class Attributes(object):
+        """
+        The module that provides glue between :class:`MispEvent` and :class:`MispAttribute`
+
+        """
         def __init__(self, event):
             self.event = event
             self._attributes = []
 
         def add(self, attr):
+            """This function adds an attribute to the current event.
+
+            It takes care of updating Event's timestamp and filling the blanks in
+            the attribute object (timestamp, uuid, event id).
+
+            :param attr: a :class:`MispAttribute`'s instance to be added to the Event
+
+            :example:
+
+            >>> new_attr = MispAttribute()
+            >>> new_attr.value = 'foobar.com'
+            >>> new_attr.category = 'Network activity'
+            >>> new_attr.types = 'domain'
+            >>> server = MispServer()
+            >>> event = server.events.get(12)
+            >>> event.attributes.add(new_attr)
+            >>> server.events.update(event)
+
+            """
             if type(attr) is not MispAttribute:
                 raise ValueError("event.attributes.add() only takes MispAttribute instance")
             self.event.timestamp = datetime.datetime.now()
@@ -141,6 +180,12 @@ class MispEvent(MispBaseObject):
             self._attributes.append(attr)
 
         def remove(self, attribute):
+            """This function removes an attribute from the current event.
+
+            :param attr: `MispAttribute` to be removed to the Event
+            .. todo::
+               Implement it.
+            """
             raise NotImplemented('Cannot remove attribute yet')
 
         def __iter__(self):
@@ -169,6 +214,7 @@ class MispEvent(MispBaseObject):
 
     @property
     def attribute_count(self):
+        """Read-only variable that counts the number of attributes"""
         return len(self.attributes)
 
     @property
@@ -230,6 +276,13 @@ class MispEvent(MispBaseObject):
 
     @property
     def date(self):
+        """
+        Getter/setter for the date member.
+
+        The setter can take a string or a :meth:`datetime.datetime` and will do the
+        appropriate transformation.
+
+        """
         if self._date:
             return self._date
         return datetime.datetime.now().strftime('%Y-%m-%d')
@@ -247,6 +300,12 @@ class MispEvent(MispBaseObject):
 
     @property
     def publish_timestamp(self):
+        """
+        Getter/setter.
+
+        The setter can take an integer (as an epoch timestamp) or a :class:`datetime.datetime`.
+        instance.
+        """
         if self._publish_timestamp:
             return self._publish_timestamp
         return int(time.time())
@@ -262,6 +321,16 @@ class MispEvent(MispBaseObject):
 
     @staticmethod
     def from_xml(s):
+        """
+        Static method converting a serialized XML string into a :class:`MispEvent` object.
+
+        :example:
+
+        >>> s = '<Event><id>42</id><org>ACME and bro.</org><date>2015-10-20</date><threat_level_id>3</threat_level_id><info>AGNOSTIC PANDA</info><published>1</published><uuid>56278fd8-f2c0-4907-bcca-594e0a3ac101</uuid><attribute_count>8</attribute_count><analysis>2</analysis><timestamp>1445434988</timestamp><distribution>1</distribution><proposal_email_lock>0</proposal_email_lock><orgc>ACME Corporation</orgc><locked>0</locked><publish_timestamp>1445435155</publish_timestamp></Event>'
+        >>> m = MispEvent.from_xml(s)
+        >>> type(m)
+        <class 'misp.MispEvent'>
+        """
         event = objectify.fromstring(s)
         return MispEvent.from_xml_object(event)
 
@@ -315,12 +384,25 @@ class MispTransportError(Exception):
 
 
 class MispServer(object):
-    def __init__(self):
-        self.url = DEFAULT_MISP_URL
+    """
+    Module to communicate with the MISP instance.
+
+   :members:
+
+   .. automethod:: __init__
+    """
+    def __init__(self, url=DEFAULT_MISP_URL, apikey=MISP_API_KEY):
+        """Initializes a MispServer instance.
+
+          :param url: Fully qualified URL to the MISP instance
+          :param apikey: MISP API key
+
+        """
+        self.url = url
         self.headers = {
             'Content-Type': 'application/xml',
             'Accept': 'application/xml',
-            'Authorization': MISP_API_KEY
+            'Authorization': apikey,
         }
         self.events = MispServer.Events(self)
         self.attributes = MispServer.Attributes(self)
@@ -330,6 +412,13 @@ class MispServer(object):
         return self.url + path
 
     def POST(self, path, body):
+        """
+        Raw POST to the MISP server
+
+        :param path: URL fragment (ie /events/)
+        :param body: HTTP Body (raw bytes)
+        :returns: HTTP raw content (as seen by :class:`requests.Response`)
+        """
         url = self._absolute_url(path)
         resp = requests.post(url, data=body, headers=self.headers, verify=MISP_SSL_CHAIN)
         if resp.status_code != 200:
@@ -337,6 +426,12 @@ class MispServer(object):
         return resp.content
 
     def GET(self, path):
+        """
+        Raw GET to the MISP server
+
+        :param path: URL fragment (ie /events/)
+        :returns: HTTP raw content (as seen by :class:`requests.Response`)
+        """
         url = self._absolute_url(path)
         resp = requests.get(url, headers=self.headers, verify=MISP_SSL_CHAIN)
         if resp.status_code != 200:
@@ -344,15 +439,46 @@ class MispServer(object):
         return resp.content
 
     class ShadowAttributes(object):
+        """
+        This module communicates shadow attributes with the MISP server
+        """
+
         def __init__(self, server):
             self.server = server
 
         def get(self, shadowattributeid):
+            """
+            Fetches a shadow attribute from the MISP server.
+
+            :param shadowattributeid: Shadow attribute id (as an integer)
+            :returns: :class:`MispShadowAttribute` object
+
+            """
             raw = self.server.GET('/shadow_attributes/view/%d' % shadowattributeid)
             response = objectify.fromstring(raw)
             return MispShadowAttribute.from_xml_object(response.ShadowAttribute)
 
         def add(self, event, shadowattribute):
+            """
+            Adds a shadow attribute to an event and send it to the MISP server.
+
+            :param event: :class:`MispEvent` object to add
+            :param shadowattribute: :class:`MispShadowAttribute` object to add
+            :returns: The :class:`MispShadowAttribute` object as seen by the server.
+
+            :example:
+
+            >>> proposal = MispShadowAttribute()
+            >>> proposal.value = 'foobar.com'
+            >>> proposal.category = 'Network activity'
+            >>> proposal.types = 'domain'
+            >>> server = MispServer()
+            >>> event = server.events.get(12)
+            >>> event.attributes.add(new_attr)
+            >>> server.shadowattributes.add(event, proposal)
+
+            """
+
             assert shadowattribute is not MispShadowAttribute
             assert event is not MispEvent
             raw = shadowattribute.to_xml()
@@ -361,6 +487,20 @@ class MispServer(object):
             return MispShadowAttribute.from_xml_object(response.ShadowAttribute)
 
         def update(self, attr):
+            """
+            Updates a shadow attribute on the MISP server.
+
+            :param shadowattribute: :class:`MispShadowAttribute` object to update
+            :returns: The :class:`MispShadowAttribute` object as seen by the server.
+
+            :example:
+
+            >>> server = MispServer()
+            >>> proposal = server.shadowattributes.get(12)
+            >>> proposal.to_ids = 0
+            >>> server.shadowattributes.update(proposal)
+
+            """
             assert attr is not MispShadowAttribute
             raw = attr.to_xml()
             raw = self.server.POST('/shadow_attributes/edit/%d' % attr.id, raw)
@@ -368,47 +508,134 @@ class MispServer(object):
             return MispShadowAttribute.from_xml_object(response.ShadowAttribute)
 
         def accept(self, shadowattribute):
+            """
+            Accepts a shadow attribute on the MISP server.
+
+            :param shadowattribute: :class:`MispShadowAttribute` object to accept
+
+            :example:
+
+            >>> server = MispServer()
+            >>> proposal = server.shadowattributes.get(12)
+            >>> server.shadowattributes.accept(proposal)
+
+            """
             assert shadowattribute is not MispShadowAttribute
             raw = self.server.POST('/shadow_attributes/accept/%d' % shadowattribute.id, '')
 
         def discard(self, shadowattribute):
+            """
+            Discards a shadow attribute on the MISP server.
+
+            :param shadowattribute: :class:`MispShadowAttribute` object to discard
+
+            :example:
+
+            >>> server = MispServer()
+            >>> proposal = server.shadowattributes.get(12)
+            >>> server.shadowattributes.discard(proposal)
+
+            """
             assert shadowattribute is not MispShadowAttribute
             raw = self.server.POST('/shadow_attributes/discard/%d' % shadowattribute.id, '')
 
     class Attributes(object):
+        """
+        This modules communicates Attributes with the MISP server.
+        """
         def __init__(self, server):
             self.server = server
 
         def get(self, id):
+            """
+            Fetches an attribute from the MISP server.
+
+            :param id: Attribute id (as an integer)
+            :returns: :class:`MispAttribute` object
+
+            """
             resp = self.server.GET('/attributes/%d' % id)
             response = objectify.fromstring(raw)
             return MispAttribute.from_xml_object(response.Attribute)
 
         def update(self, attr):
+            """
+            Updates an attribute on the MISP server.
+
+            :param attr: :class:`MispAttribute` object to update
+
+            :example:
+
+            >>> server = MispServer()
+            >>> attr = server.attributes.get(12)
+            >>> attr.comment = 'foobar'
+            >>> server.attributes.update(attr)
+
+            """
             assert attr is not MispAttribute
             attr.timestamp = datetime.datetime.now()
             raw = attr.to_xml()
             raw = self.server.POST('/attributes/%d' % attr.id, raw)
 
         def search(self):
+            """
+            Searches an attribute on the MISP server
+
+            .. todo::
+
+            Not implemented.
+            """
             raise NotImplemented()
 
     class Events(object):
+        """
+        This modules communicates Events with the MISP server.
+        """
+
         def __init__(self, server):
             self.server = server
 
         def get(self, evtid):
+            """Fetches an event from the MISP server.
+
+            :param evtid: Event ID (as an integer)
+            :returns: :class:`MispEvent` object
+
+            >>> server = MispServer()
+            >>> event = server.events.get(12)
+
+            """
             raw_evt = self.server.GET('/events/%d' % evtid)
             response = objectify.fromstring(raw_evt)
             return MispEvent.from_xml_object(response.Event)
 
         def update(self, event):
+            """Modifies an event and propagate a change to the MISP server.
+
+            It will update the event's timestamp and reset the publishing state
+            (set to false).
+
+            :param event: The modified :class:`MispEvent` object
+
+            >>> server = MispServer()
+            >>> event = server.events.get(12)
+            >>> event.distribution = 2
+            >>> server.events.update(event)
+
+            """
             event.timestamp = datetime.datetime.now()
             event.published=0
             raw_evt = event.to_xml()
             self.server.POST('/events/%d' % event.id, raw_evt)
 
         def put(self, event):
+            """Creates an event on the MISP server.
+
+            It will find an Event ID for you.
+
+            :param event: The :class:`MispEvent` object to push
+
+            """
             if not event.id:
                 lastevent = self.last()
                 event.id = lastevent.id+1 # XXX: race-condition possible
@@ -416,17 +643,45 @@ class MispServer(object):
             self.server.POST('/events', raw_evt)
 
         def last(self):
+            """Returns the last event published on the MISP server.
+
+            :returns: Last :class:`MispEvent` object published
+            """
             return self.list(limit=1, direction='desc')
 
         def list(self, limit=10, sort='date', direction='asc'):
+            """List events on the MISP servers according to the given criteria.
+
+            :param limit: Maximum number of events to fetch
+            :param sort: Sorting criteria (can be: date)
+            :returns: Last :class:`MispEvent` object published
+            """
             url = '/events/index/sort:%s/direction:%s/limit:%d' % (sort, direction, limit)
-            raw = self.server.GET('/events/index/sort:id/direction:desc/limit:1.xml')
-            response = objectify.fromstring(raw)
-            return MispEvent.from_xml_object(response.Event)
+            raw = self.server.GET(url)
+            events=[]
+            for evtobj in response.Event:
+                events.append(MispEvent.from_xml_object(evtobj))
+            return events
 
         def search(self, attr_type=None, tags=None, value=None,
                   category=None, org=None, date_from=None, date_to=None,
-                  last=None, tag=None, quickfilter=None, evtid=None):
+                  last=None, quickfilter=None, evtid=None):
+            """Search events on the MISP server.
+
+            Searching criteria:
+
+            :param attr_type: The attribute type, any valid MISP attribute type is accepted.
+            :param tags: To include a tag in the results just write its names into this parameter. To exclude a tag prepend it with a '!'. You can also chain several tag commands together with the '&&' operator. Please be aware the colons (:) cannot be used in the tag search. Use semicolons instead (the search will automatically search for colons instead).
+            :param value: Search for the given value in the attributes' value field.
+            :param category: The attribute category, any valid MISP attribute category is accepted.
+            :param org: Search by the creator organisation by supplying the organisation idenfitier.
+            :param date_from: Events with the date set to a date after the one specified in the from field (format: 2015-02-15)
+            :param date_to: Events with the date set to a date before the one specified in the to field (format: 2015-02-15)
+            :param last: Events published within the last x amount of time, where x can be defined in days, hours, minutes (for example 5d or 12h or 30m)
+            :param quickfilter: Enabling this (by passing "1" as the argument) will make the search ignore all of the other arguments, except for the auth key and value.
+            :param evtid:
+            :returns: List of :class:`MispEvent` objects
+            """
             request = objectify.Element('request')
             #request.searchall = 1
             if attr_type:
@@ -464,7 +719,8 @@ class MispServer(object):
 attr_categories = ['Internal reference', 'Targeting data', 'Antivirus detection',
            'Payload delivery', 'Payload installation', 'Artifacts dropped',
            'Persistence mechanism', 'Network activity', 'Payload type',
-           'Attribution', 'External analysis', 'Other']
+           'Attribution', 'External analysis', 'Other', 'Advisory PDF',
+           'Advisory YAML' ]
 
 attr_types = ['md5', 'sha1', 'sha256', 'filename', 'filename|md5', 'filename|sha1',
          'filename|sha256', 'ip-src', 'ip-dst', 'hostname', 'domain', 'url',
@@ -517,6 +773,12 @@ class MispAttribute(MispBaseObject):
 
     @value.setter
     def value(self, value):
+        """The value of the IOC.
+
+        .. todo::
+           Note that no check is performed on the format of this value, we delegate this
+           verification to the MISP server.
+        """
         self._value = value
 
     @property
@@ -531,6 +793,10 @@ class MispAttribute(MispBaseObject):
 
     @property
     def type(self):
+        """Getter/setter
+
+        The setter will verify that the given value is valid.
+        """
         return self._type
 
     @type.setter
@@ -541,11 +807,13 @@ class MispAttribute(MispBaseObject):
 
     @property
     def to_ids(self):
+        """Boolean variable
+        """
         return self._to_ids or 0
 
     @to_ids.setter
     def to_ids(self, value):
-        self._to_ids = value
+        self._to_ids = int(value)
 
     @property
     def ShadowAttribute(self):
@@ -553,6 +821,17 @@ class MispAttribute(MispBaseObject):
 
     @staticmethod
     def from_xml(s):
+        """
+        Static method converting a serialized XML string into a :class:`MispAttribute` object.
+
+        :example:
+
+        >>> s = '<Attribute><id>87183</id><type>regkey|value</type><category>Persistencemechanism</category><to_ids>1</to_ids><uuid>562795f9-5723-4b96-8940-599b0a3ac101</uuid><event_id>486</event_id><distribution>1</distribution><timestamp>1445434872</timestamp><comment>loooool</comment><value>lol</value><ShadowAttribute/></Attribute>'
+        >>> a = MispAttribute.from_xml(s)
+        >>> type(a)
+        <class 'misp.MispAttribute'>
+
+        """
         attr = objectify.fromstring(s)
         return MispAttribute.from_xml_object(attr)
 
@@ -579,11 +858,28 @@ class MispAttribute(MispBaseObject):
 
 
 class MispShadowAttribute(MispAttribute):
+    """A shadow attribute is what human beings call proposal :)
+
+       It is the same thing than a :class:`MispAttribute`. This module basically
+       inherits everything from it.
+
+    """
     def __init__(self):
         super(MispShadowAttribute, self).__init__()
 
     @staticmethod
     def from_xml(s):
+        """
+        Static method converting a serialized XML string into a :class:`MispShadowAttribute` object.
+
+        :example:
+
+        >>> s = '<ShadowAttribute>...</ShadowAttribute>
+        >>> a = MispShadowAttribute.from_xml(s)
+        >>> type(a)
+        <class 'misp.MispShadowAttribute'>
+        """
+
         attr = objectify.fromstring(s)
         return MispShadowAttribute.from_xml_object(attr)
 
@@ -604,231 +900,3 @@ class MispShadowAttribute(MispAttribute):
             setattr(attr, field, val)
         return attr
 
-class MispEventTest(unittest.TestCase):
-    def test_good_xml(self):
-        s = r'''<Event>
-    <id>42</id>
-    <org>ACME and bro.</org>
-    <date>2015-10-20</date>
-    <threat_level_id>3</threat_level_id>
-    <info>AGNOSTIC PANDA</info>
-    <published>1</published>
-    <uuid>56278fd8-f2c0-4907-bcca-594e0a3ac101</uuid>
-    <attribute_count>8</attribute_count>
-    <analysis>2</analysis>
-    <timestamp>1445434988</timestamp>
-    <distribution>1</distribution>
-    <proposal_email_lock>0</proposal_email_lock>
-    <orgc>ACME Corporation</orgc>
-    <locked>0</locked>
-    <publish_timestamp>1445435155</publish_timestamp>
-    </Event>
-'''
-        m = MispEvent.from_xml(s)
-        self.assertEquals(m.uuid, '56278fd8-f2c0-4907-bcca-594e0a3ac101')
-        self.assertEquals(m.id, 42)
-        self.assertEquals(m.org, 'ACME and bro.')
-        self.assertEquals(m.date, '2015-10-20')
-        self.assertEquals(m.threat_level_id, 3)
-        self.assertEquals(m.info, 'AGNOSTIC PANDA')
-        self.assertEquals(m.published, 1)
-        self.assertEquals(m.analysis, 2)
-        self.assertEquals(m.timestamp, 1445434988)
-        self.assertEquals(m.distribution, 1)
-        self.assertEquals(m.orgc, 'ACME Corporation')
-        self.assertEquals(m.locked, 0)
-        self.assertEquals(m.publish_timestamp, 1445435155)
-
-    def test_good_xml_full_generation(self):
-        s = r'''<Event>
-    <id>42</id>
-    <org>ACME and bro.</org>
-    <date>2015-10-20</date>
-    <threat_level_id>3</threat_level_id>
-    <info>AGNOSTIC PANDA</info>
-    <published>1</published>
-    <uuid>56278fd8-f2c0-4907-bcca-594e0a3ac101</uuid>
-    <attribute_count>8</attribute_count>
-    <analysis>2</analysis>
-    <timestamp>1445434988</timestamp>
-    <distribution>1</distribution>
-    <proposal_email_lock>0</proposal_email_lock>
-    <orgc>ACME Corporation</orgc>
-    <locked>0</locked>
-    <publish_timestamp>1445435155</publish_timestamp>
-    </Event>
-'''
-        m = MispEvent.from_xml(s)
-        new = m.to_xml()
-        m = MispEvent.from_xml(new)
-        self.assertEquals(m.uuid, '56278fd8-f2c0-4907-bcca-594e0a3ac101')
-        self.assertEquals(m.id, 42)
-        self.assertEquals(m.org, 'ACME and bro.')
-        self.assertEquals(m.date, '2015-10-20')
-        self.assertEquals(m.threat_level_id, 3)
-        self.assertEquals(m.info, 'AGNOSTIC PANDA')
-        self.assertEquals(m.published, 1)
-        self.assertEquals(m.analysis, 2)
-        self.assertEquals(m.timestamp, 1445434988)
-        self.assertEquals(m.distribution, 1)
-        self.assertEquals(m.orgc, 'ACME Corporation')
-        self.assertEquals(m.locked, 0)
-        self.assertEquals(m.publish_timestamp, 1445435155)
-
-    def test_good_xml_generation(self):
-        company = 'ACME Corporation'
-        m = MispEvent()
-        m.org = company
-        serialized_evt = m.to_xml()
-        obj = MispEvent.from_xml(serialized_evt)
-        self.assertEquals(obj.org, company)
-
-    def test_bad_xml(self):
-        with self.assertRaises(lxml.etree.XMLSyntaxError):
-            MispEvent.from_xml('<foo')
-
-    def test_good_time_format(self):
-        m = MispEvent()
-        d = datetime.datetime.now()
-        m.publish_timestamp = d
-        self.assertEquals(m.publish_timestamp, int(time.mktime(d.timetuple())))
-
-
-class MispAttrTest(unittest.TestCase):
-    def test_fromtofrom_xml(self):
-        s = r'''<Attribute>
-      <id>87183</id>
-      <type>regkey|value</type>
-      <category>Persistence mechanism</category>
-      <to_ids>1</to_ids>
-      <uuid>562795f9-5723-4b96-8940-599b0a3ac101</uuid>
-      <event_id>486</event_id>
-      <distribution>1</distribution>
-      <timestamp>1445434872</timestamp>
-      <comment>loooool</comment>
-      <value>lol</value>
-      <ShadowAttribute/>
-    </Attribute>'''
-        a = MispAttribute.from_xml(s)
-        s = a.to_xml()
-        a = MispAttribute.from_xml(s)
-        self.assertEquals(a.id, 87183)
-        self.assertEquals(a.type, 'regkey|value')
-        self.assertEquals(a.category, 'Persistence mechanism')
-        self.assertEquals(a.to_ids, 1)
-        self.assertEquals(a.uuid, '562795f9-5723-4b96-8940-599b0a3ac101')
-        self.assertEquals(a.event_id, 486)
-        self.assertEquals(a.distribution, 1)
-        self.assertEquals(a.timestamp, 1445434872)
-        self.assertEquals(a.comment, 'loooool')
-        self.assertEquals(a.value, 'lol')
-    
-    def test_from_xml(self):
-        s = r'''<Attribute>
-      <id>87183</id>
-      <type>regkey|value</type>
-      <category>Persistence mechanism</category>
-      <to_ids>1</to_ids>
-      <uuid>562795f9-5723-4b96-8940-599b0a3ac101</uuid>
-      <event_id>486</event_id>
-      <distribution>1</distribution>
-      <timestamp>1445434872</timestamp>
-      <comment>loooool</comment>
-      <value>lol</value>
-      <ShadowAttribute/>
-    </Attribute>'''
-        a = MispAttribute.from_xml(s)
-        self.assertEquals(a.id, 87183)
-        self.assertEquals(a.type, 'regkey|value')
-        self.assertEquals(a.category, 'Persistence mechanism')
-        self.assertEquals(a.to_ids, 1)
-        self.assertEquals(a.uuid, '562795f9-5723-4b96-8940-599b0a3ac101')
-        self.assertEquals(a.event_id, 486)
-        self.assertEquals(a.distribution, 1)
-        self.assertEquals(a.timestamp, 1445434872)
-        self.assertEquals(a.comment, 'loooool')
-        self.assertEquals(a.value, 'lol')
-
-    def test_bad_category(self):
-        attr = MispAttribute()
-        with self.assertRaises(ValueError):
-            attr.category = 'foobar'
-
-    def test_bad_category(self):
-        attr = MispAttribute()
-        with self.assertRaises(ValueError):
-            attr.distribution = 4
-
-    def test_bad_threat_lvl(self):
-        attr = MispAttribute()
-        with self.assertRaises(ValueError):
-            attr.threat_level_id = 5
-
-    def test_bad_analysis(self):
-        attr = MispAttribute()
-        with self.assertRaises(ValueError):
-            attr.analysis = 5
-
-    def test_good_inner_attribute(self):
-        attr = MispAttribute()
-
-
-class MispServerTest(unittest.TestCase):
-    def test_get_event(self):
-        m = MispServer()
-        evt = m.events.get(TEST_EVT_ID)
-        self.assertEquals(evt.id, TEST_EVT_ID)
-
-    def test_search_event(self):
-        m = MispServer()
-        evt=m.events.search(value=TEST_NEEDLE)
-        self.assertEquals(len(evt), 1)
-        self.assertEquals(evt[0].id, TEST_EVT_ID)
-        ok=False
-        for event in evt:
-            for attr in event.attributes:
-                if attr.value == TEST_NEEDLE:
-                    ok=True
-                    break
-        self.assertEquals(ok, True)
-
-    def disabled_test_last(self):
-        m = MispServer()
-        self.assertEquals(m.events.last().id, TEST_LAST_EVT_ID)
-
-    def disabled_test_create_event(self):
-        m = MispServer()
-        e = MispEvent()
-        e.info = 'Hello world'
-        e.orgc = DEFAULT_ORGC
-        e.org = DEFAULT_ORG
-        e.published = 0
-        e.distribution = 0
-        m.events.put(e)
-
-    def test_modify_event(self):
-        m = MispServer()
-        e = m.events.get(TEST_EVT_ID)
-        e.timestamp = datetime.datetime.now()
-        a = MispAttribute()
-        a.value='foobar%d.com' % time.time()
-        a.comment='evil domain'
-        a.category = 'Network activity'
-        a.type = 'domain'
-        e.attributes.add(a)
-        m.events.update(e)
-
-    def test_modify_attr(self):
-        m = MispServer()
-        event = m.events.get(TEST_EVT_ID)
-        updateme=None
-        for attr in event.attributes:
-            if str(attr.value).startswith('tata'):
-                updateme=attr
-                break
-        self.assertIsNotNone(updateme)
-        updateme.comment='Hello; %s' % datetime.datetime.now()
-        m.attributes.update(updateme)
-
-if __name__ == '__main__':
-    unittest.main()
