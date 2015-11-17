@@ -41,11 +41,11 @@ TEST_EVT_ID = 540
 TEST_ATTR_ID = 87516
 TEST_LAST_EVT_ID = 534
 
-DEFAULT_MISP_URL = 'https://misp.internal'
-DEFAULT_ORG = 'ACME Corp.'
+DEFAULT_MISP_URL = 'https://misp.cert.corp'
+DEFAULT_ORG = 'Airbus Group CERT'
 DEFAULT_ORGC = DEFAULT_ORG
 MISP_API_KEY = open(os.path.join(os.environ['HOME'], '.misp_api_key')).read().strip()
-MISP_SSL_CHAIN = '/etc/ssl/certs/ca-certificates.crt'
+MISP_SSL_CHAIN = '/etc/ssl/certs/AG_CERT.pem'
 
 # To remove this deprecation warning:
 # SecurityWarning: Certificate has no `subjectAltName`, falling back to check
