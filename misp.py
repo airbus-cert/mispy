@@ -884,6 +884,31 @@ class MispShadowAttribute(MispAttribute):
         return MispShadowAttribute.from_xml_object(attr)
 
     @staticmethod
+    def from_attribute(attr):
+        """
+        Converts an attribute into a shadow attribute.
+
+        :param attr: :class:`MispAttribute` instance to be converted
+        :returns: Converted :class:`MispShadowAttribute`
+        :example:
+
+        >>> server = MispServer()
+        >>> event = server.events.get(12)
+        >>> attr = event.attributes[0]
+        >>> prop = MispShadowAttribute.from_attribute(attr)
+
+        """
+        assert attr is not MispAttribute
+        prop = MispShadowAttribute()
+        prop.distribution = attr.distribution
+        prop.type = attr.type
+        prop.comment = attr.comment
+        prop.value = attr.value
+        prop.category = attr.category
+        prop.to_ids= attr.to_ids
+        return prop
+
+    @staticmethod
     def from_xml_object(obj):
         if obj.tag.lower() != 'shadowattribute':
             raise ValueError('Invalid ShadowAttribute XML (tag="%s")' % obj.tag.lower())
