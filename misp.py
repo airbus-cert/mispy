@@ -365,12 +365,14 @@ class MispEvent(MispBaseObject):
         for field in ['uuid', 'distribution', 'threat_level_id', 'org',
                       'orgc', 'date', 'info', 'published', 'analysis',
                       'timestamp', 'distribution', 'proposal_email_lock',
-                      'locked', 'publish_timestamp', 'id', 'ShadowAttribute',
-                      'attribute_count']:
+                      'locked', 'publish_timestamp', 'id', 'attribute_count']:
             val = getattr(self, field)
             setattr(event, field, val)
-        for shadowattribute in event.shadowattributes:
-            event.append(shadowattribute.to_xml_object())
+        try:
+            for shadowattribute in event.shadowattributes:
+                event.append(shadowattribute.to_xml_object())
+        except Exception:
+            pass
         for attr in self.attributes:
             event.append(attr.to_xml_object())
         return event
@@ -655,6 +657,7 @@ class MispServer(object):
             """
             url = '/events/index/sort:%s/direction:%s/limit:%d' % (sort, direction, limit)
             raw = self.server.GET(url)
+            response = objectify.fromstring(raw)
             events=[]
             for evtobj in response.Event:
                 events.append(MispEvent.from_xml_object(evtobj))
