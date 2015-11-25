@@ -40,8 +40,8 @@ TEST_EVT_ID = 540
 TEST_ATTR_ID = 87516
 TEST_LAST_EVT_ID = 534
 
-DEFAULT_MISP_URL = 'https://misp.cert.corp'
-DEFAULT_ORG = 'Airbus Group CERT'
+DEFAULT_MISP_URL = 'https://misp.internal'
+DEFAULT_ORG = 'ACME Corp'
 DEFAULT_ORGC = DEFAULT_ORG
 try:
     MISP_API_KEY = open(os.path.join(os.environ['HOME'], '.misp_api_key')).read().strip()
