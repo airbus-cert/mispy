@@ -190,12 +190,12 @@ class MispAttrTest(unittest.TestCase):
 
 
 class MispServerTest(unittest.TestCase):
-    def test_get_event(self):
+    def disabled_test_get_event(self):
         m = MispServer()
         evt = m.events.get(TEST_EVT_ID)
         self.assertEquals(evt.id, TEST_EVT_ID)
 
-    def test_search_event(self):
+    def disabled_test_search_event(self):
         m = MispServer()
         evt=m.events.search(value=TEST_NEEDLE)
         self.assertEquals(len(evt), 1)
@@ -222,7 +222,7 @@ class MispServerTest(unittest.TestCase):
         e.distribution = 0
         m.events.put(e)
 
-    def test_modify_event(self):
+    def disabled_test_modify_event(self):
         m = MispServer()
         e = m.events.get(TEST_EVT_ID)
         e.timestamp = datetime.datetime.now()
@@ -234,7 +234,7 @@ class MispServerTest(unittest.TestCase):
         e.attributes.add(a)
         m.events.update(e)
 
-    def test_modify_attr(self):
+    def disabled_test_modify_attr(self):
         m = MispServer()
         event = m.events.get(TEST_EVT_ID)
         updateme=None
