@@ -115,7 +115,7 @@ class MispBaseObject(object):
 
     @distribution.setter
     def distribution(self, value):
-        if int(value) not in [0, 1, 2, 3]:
+        if int(value) not in [0, 1, 2, 3, 4, 5]:
             raise ValueError('Invalid distribution value for an attribute')
         self._distribution = value
 
@@ -623,6 +623,7 @@ class MispServer(object):
             """
             raw_evt = self.server.GET('/events/%d' % evtid)
             response = objectify.fromstring(raw_evt)
+            print raw_evt
             return MispEvent.from_xml_object(response.Event)
 
         def update(self, event):
@@ -896,7 +897,6 @@ class MispShadowAttribute(MispAttribute):
         >>> type(a)
         <class 'misp.MispShadowAttribute'>
         """
-
         attr = objectify.fromstring(s)
         return MispShadowAttribute.from_xml_object(attr)
 
@@ -931,8 +931,11 @@ class MispShadowAttribute(MispAttribute):
             raise ValueError('Invalid ShadowAttribute XML (tag="%s")' % obj.tag.lower())
         shadowattribute = MispShadowAttribute()
         for field in ['type', 'category', 'to_ids', 'comment', 'value', 'id']:
-            val = getattr(obj, field)
-            setattr(shadowattribute, field, val)
+            try:
+                val = getattr(obj, field)
+                setattr(shadowattribute, field, val)
+            except AttributeError:
+                print 'ShadowAttributes has no', field, 'field'
         return shadowattribute
 
     def to_xml_object(self):
