@@ -5,7 +5,8 @@
 
 A pythonic MISP module.
 
-Documentation is coming! In the mean time, have a look to the unit tests!
+[API Documentation](https://readthedocs.org/projects/python-misp/badge/?version=latest)
+and unit-tests are available.
 
 ### Credit
 
