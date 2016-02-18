@@ -41,7 +41,7 @@ TEST_ATTR_ID = 87516
 TEST_LAST_EVT_ID = 534
 
 DEFAULT_MISP_URL = 'https://misp.internal'
-DEFAULT_ORG = 'ACME Corp'
+DEFAULT_ORG = 'Default ACME Corp'
 DEFAULT_ORGC = DEFAULT_ORG
 try:
     MISP_API_KEY = open(os.path.join(os.environ['HOME'], '.misp_api_key')).read().strip()
@@ -163,7 +163,7 @@ class MispEvent(MispBaseObject):
             >>> new_attr = MispAttribute()
             >>> new_attr.value = 'foobar.com'
             >>> new_attr.category = 'Network activity'
-            >>> new_attr.types = 'domain'
+            >>> new_attr.type = 'domain'
             >>> server = MispServer()
             >>> event = server.events.get(12)
             >>> event.attributes.add(new_attr)
@@ -473,7 +473,7 @@ class MispServer(object):
             >>> proposal = MispShadowAttribute()
             >>> proposal.value = 'foobar.com'
             >>> proposal.category = 'Network activity'
-            >>> proposal.types = 'domain'
+            >>> proposal.type = 'domain'
             >>> server = MispServer()
             >>> event = server.events.get(12)
             >>> event.attributes.add(new_attr)
