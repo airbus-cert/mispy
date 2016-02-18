@@ -24,7 +24,16 @@ class MispEventTest(unittest.TestCase):
     def test_good_xml(self):
         s = r"""<Event>
     <id>42</id>
-    <org>ACME and bro.</org>
+    <Org>
+      <name>ACME and bro.</name>
+      <id>12</id>
+      <uuid>464d9146-2c34-43df-906a-7bc40a3ac101</uuid>
+    </Org>
+    <Orgc>
+      <name>ACME Corporation</name>
+      <id>13</id>
+      <uuid>164d9146-2c34-43df-906a-7bc40a3ac101</uuid>
+    </Orgc>
     <date>2015-10-20</date>
     <threat_level_id>3</threat_level_id>
     <info>AGNOSTIC PANDA</info>
@@ -35,7 +44,6 @@ class MispEventTest(unittest.TestCase):
     <timestamp>1445434988</timestamp>
     <distribution>1</distribution>
     <proposal_email_lock>0</proposal_email_lock>
-    <orgc>ACME Corporation</orgc>
     <locked>0</locked>
     <publish_timestamp>1445435155</publish_timestamp>
     </Event>
@@ -58,8 +66,16 @@ class MispEventTest(unittest.TestCase):
     def test_good_xml_full_generation(self):
         s = r"""<Event>
     <id>42</id>
-    <org>ACME and bro.</org>
-    <date>2015-10-20</date>
+    <Org>
+      <name>ACME and bro.</name>
+      <id>12</id>
+      <uuid>464d9146-2c34-43df-906a-7bc40a3ac101</uuid>
+    </Org>
+    <Orgc>
+      <name>ACME Corporation</name>
+      <id>13</id>
+      <uuid>164d9146-2c34-43df-906a-7bc40a3ac101</uuid>
+    </Orgc>    <date>2015-10-20</date>
     <threat_level_id>3</threat_level_id>
     <info>AGNOSTIC PANDA</info>
     <published>1</published>
@@ -69,7 +85,6 @@ class MispEventTest(unittest.TestCase):
     <timestamp>1445434988</timestamp>
     <distribution>1</distribution>
     <proposal_email_lock>0</proposal_email_lock>
-    <orgc>ACME Corporation</orgc>
     <locked>0</locked>
     <publish_timestamp>1445435155</publish_timestamp>
     </Event>

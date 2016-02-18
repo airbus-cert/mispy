@@ -326,7 +326,7 @@ class MispEvent(MispBaseObject):
 
         :example:
 
-        >>> s = '<Event><id>42</id><org>ACME and bro.</org><date>2015-10-20</date><threat_level_id>3</threat_level_id><info>AGNOSTIC PANDA</info><published>1</published><uuid>56278fd8-f2c0-4907-bcca-594e0a3ac101</uuid><attribute_count>8</attribute_count><analysis>2</analysis><timestamp>1445434988</timestamp><distribution>1</distribution><proposal_email_lock>0</proposal_email_lock><orgc>ACME Corporation</orgc><locked>0</locked><publish_timestamp>1445435155</publish_timestamp></Event>'
+        >>> s = '<Event><id>42</id><Org><name>ACME and bro.<name><uuid>564d9146-2c34-43df-906a-7bc40a3ac101</uuid><id>12</id></Org><Orgc><name>ACME and bro bis.<name><uuid>164d9146-2c34-43df-906a-7bc40a3ac101</uuid><id>13</id></Orgc><date>2015-10-20</date><threat_level_id>3</threat_level_id><info>AGNOSTIC PANDA</info><published>1</published><uuid>56278fd8-f2c0-4907-bcca-594e0a3ac101</uuid><attribute_count>8</attribute_count><analysis>2</analysis><timestamp>1445434988</timestamp><distribution>1</distribution><publish_timestamp>1445435155</publish_timestamp></Event>'
         >>> m = MispEvent.from_xml(s)
         >>> type(m)
         <class 'misp.MispEvent'>
@@ -338,11 +338,11 @@ class MispEvent(MispBaseObject):
     def from_xml_object(obj):
         if obj.tag.lower() != 'event':
             raise ValueError('Invalid Event XML')
+
         event = MispEvent()
-        for field in ['uuid', 'distribution', 'threat_level_id', 'org',
-                      'orgc', 'date', 'info', 'published', 'analysis',
-                      'timestamp', 'distribution', 'proposal_email_lock',
-                      'locked', 'publish_timestamp', 'id']:
+        for field in ['uuid', 'distribution', 'threat_level_id',
+                      'date', 'info', 'published', 'analysis',
+                      'timestamp', 'distribution', 'publish_timestamp', 'id']:
             val = getattr(obj, field)
             setattr(event, field, val)
         try:
@@ -356,11 +356,16 @@ class MispEvent(MispBaseObject):
             pass
 
         try:
+            event.org =  obj.Org.name
+            event.orgc =  obj.Orgc.name
+        except Exception as err:
+            pass
+
+        if hasattr(obj, 'ShadowAttribute'):
             for shadowattribute in obj.ShadowAttribute:
                 shadowattribute_obj = MispShadowAttribute.from_xml_object(shadowattribute)
                 event.shadowattributes.append(shadowattribute_obj)
-        except Exception as err:
-            pass
+
         return event
 
     def to_xml_object(self):
@@ -378,6 +383,15 @@ class MispEvent(MispBaseObject):
             pass
         for attr in self.attributes:
             event.append(attr.to_xml_object())
+
+        org = objectify.Element('Org')
+        org.name = self.org
+        event.append(org)
+
+        orgc = objectify.Element('Orgc')
+        orgc.name = self.orgc
+        event.append(orgc)
+
         return event
 
 
