@@ -649,7 +649,7 @@ class MispServer(object):
 
             :returns: Last :class:`MispEvent` object published
             """
-            return self.list(limit=1, direction='desc')
+            return self.list(limit=1, direction='desc')[0]
 
         def list(self, limit=10, sort='date', direction='asc'):
             """List events on the MISP servers according to the given criteria.
