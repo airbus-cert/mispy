@@ -852,16 +852,29 @@ attr_categories = ['Internal reference', 'Targeting data', 'Antivirus detection'
            'Payload delivery', 'Payload installation', 'Artifacts dropped',
            'Persistence mechanism', 'Network activity', 'Payload type',
            'Attribution', 'External analysis', 'Other', 'Advisory PDF',
-           'Advisory YAML' ]
+           'Advisory YAML', 'Financial fraud' ]
 
-attr_types = ['md5', 'sha1', 'sha256', 'filename', 'filename|md5', 'filename|sha1',
-         'filename|sha256', 'ip-src', 'ip-dst', 'hostname', 'domain', 'url',
-         'user-agent', 'http-method', 'regkey', 'regkey|value', 'AS', 'snort',
-         'pattern-in-file', 'pattern-in-traffic', 'pattern-in-memory', 'named pipe',
-         'mutex', 'vulnerability', 'attachment', 'malware-sample', 'link', 'comment',
-         'text', 'email-src', 'email-dst', 'email-subject', 'email-attachment',
-         'yara', 'target-user', 'target-email', 'target-machine', 'target-org',
-         'target-location', 'target-external', 'other']
+attr_types = ['md5', 'sha1', 'sha256', 'filename', 'pdb',
+            'filename|md5', 'filename|sha1', 'filename|sha256', 'ip-src',
+            'ip-dst', 'hostname', 'domain', 'domain|ip', 'email-src', 'email-dst',
+            'email-subject', 'email-attachment', 'url', 'http-method', 'user-agent',
+            'regkey', 'regkey|value', 'AS', 'snort', 'pattern-in-file',
+            'pattern-in-traffic', 'pattern-in-memory', 'yara', 'vulnerability',
+            'attachment', 'malware-sample', 'link', 'comment', 'text', 'other',
+            'named pipe', 'mutex', 'target-user', 'target-email', 'target-machine',
+            'target-org', 'target-location', 'target-external', 'btc', 'iban',
+            'bic', 'bank-account-nr', 'aba-rtn', 'bin', 'cc-number', 'prtn',
+            'threat-actor', 'campaign-name', 'campaign-id', 'malware-type',
+            'uri', 'authentihash', 'ssdeep', 'imphash', 'pehash', 'sha224',
+            'sha384', 'sha512', 'sha512/224', 'sha512/256', 'tlsh',
+            'filename|authentihash', 'filename|ssdeep', 'filename|imphash',
+            'filename|pehash', 'filename|sha224', 'filename|sha384',
+            'filename|sha512', 'filename|sha512/224', 'filename|sha512/256',
+            'filename|tlsh', 'windows-scheduled-task', 'windows-service-name',
+            'windows-service-displayname', 'whois-registrant-email',
+            'whois-registrant-phone', 'whois-registrant-name', 'whois-registrar',
+            'whois-creation-date', 'targeted-threat-index', 'mailslot', 'pipe',
+            'ssl-cert-attributes', 'x509-fingerprint-sha1']
 
 class MispAttribute(MispBaseObject):
     def __init__(self):

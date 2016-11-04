@@ -290,6 +290,35 @@ class MispAttrTest(unittest.TestCase):
     def test_good_inner_attribute(self):
         attr = MispAttribute()
 
+    def test_bad_types(self):
+        attr = MispAttribute()
+        with self.assertRaises(ValueError):
+            attr.type = 'foobar'
+
+        valid_types = ['md5', 'sha1', 'sha256', 'filename', 'pdb',
+            'filename|md5', 'filename|sha1', 'filename|sha256', 'ip-src',
+            'ip-dst', 'hostname', 'domain', 'domain|ip', 'email-src', 'email-dst',
+            'email-subject', 'email-attachment', 'url', 'http-method', 'user-agent',
+            'regkey', 'regkey|value', 'AS', 'snort', 'pattern-in-file',
+            'pattern-in-traffic', 'pattern-in-memory', 'yara', 'vulnerability',
+            'attachment', 'malware-sample', 'link', 'comment', 'text', 'other',
+            'named pipe', 'mutex', 'target-user', 'target-email', 'target-machine',
+            'target-org', 'target-location', 'target-external', 'btc', 'iban',
+            'bic', 'bank-account-nr', 'aba-rtn', 'bin', 'cc-number', 'prtn',
+            'threat-actor', 'campaign-name', 'campaign-id', 'malware-type',
+            'uri', 'authentihash', 'ssdeep', 'imphash', 'pehash', 'sha224',
+            'sha384', 'sha512', 'sha512/224', 'sha512/256', 'tlsh',
+            'filename|authentihash', 'filename|ssdeep', 'filename|imphash',
+            'filename|pehash', 'filename|sha224', 'filename|sha384',
+            'filename|sha512', 'filename|sha512/224', 'filename|sha512/256',
+            'filename|tlsh', 'windows-scheduled-task', 'windows-service-name',
+            'windows-service-displayname', 'whois-registrant-email',
+            'whois-registrant-phone', 'whois-registrant-name', 'whois-registrar',
+            'whois-creation-date', 'targeted-threat-index', 'mailslot', 'pipe',
+            'ssl-cert-attributes', 'x509-fingerprint-sha1']
+        for t in valid_types:
+            attr.type = t
+
 
 class MispServerTest(unittest.TestCase):
     def disabled_test_get_event(self):
