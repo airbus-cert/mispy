@@ -140,6 +140,90 @@ class MispBaseObject(object):
         self._analysis = value or 0
 
 
+class MispTag(MispBaseObject):
+    """
+    Object for handling MISP tags in events
+    """
+    def __init__(self):
+        super(MispTag, self).__init__()
+        self._id = None
+        self._name = None
+        self._colour = None
+        self._org_id = None
+        self._exportable = None
+
+    @property
+    def id(self):
+        return self._id
+
+    @id.setter
+    def id(self, value):
+        if value:
+            self._id = int(value)
+
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, value):
+        if value:
+            self._name = value
+
+    @property
+    def colour(self):
+        return self._colour
+
+    @colour.setter
+    def colour(self, value):
+        if value:
+            self._colour = value
+
+    @property
+    def org_id(self):
+        return self._org_id
+
+    @org_id.setter
+    def org_id(self, value):
+        if value is not None:
+            self._org_id = int(value)
+
+    @property
+    def exportable(self):
+        return self._exportable
+
+    @exportable.setter
+    def exportable(self, value):
+        if value:
+            self._exportable = (int(value) == 1)
+
+    @staticmethod
+    def from_xml(s):
+        """
+        Static method converting a serialized XML string into a :class:`MispTag` object.
+
+        :example:
+
+        >>> s = '<Tag><id>3</id><name>TLP:GREEN</name><colour>#04cc18</colour><exportable>1</exportable><org_id>0</org_id></Tag>'
+        >>> a = MispTag.from_xml(s)
+        >>> type(a)
+        <class 'misp.MispTag'>
+
+        """
+        attr = objectify.fromstring(s)
+        return MispTag.from_xml_object(attr)
+
+    @staticmethod
+    def from_xml_object(obj):
+        if obj.tag.lower() != 'tag':
+            raise ValueError('Invalid Tag XML')
+        attr = MispTag()
+        for field in ['id', 'name', 'colour', 'exportable', 'org_id']:
+            val = getattr(obj, field)
+            setattr(attr, field, val)
+        return attr
+
+
 class MispEvent(MispBaseObject):
     class Attributes(object):
         """
@@ -197,6 +281,24 @@ class MispEvent(MispBaseObject):
         def set(self, val):
             self._attributes = val
 
+    class Tags(object):
+        """
+        Module that provides glue between :class:`MispEvent` and :class:`MispTag`
+
+        """
+        def __init__(self, event):
+            self.event = event
+            self._tags = []
+
+        def __iter__(self):
+            return self._tags.__iter__()
+
+        def __len__(self):
+            return len(self._tags)
+
+        def set(self, val):
+            self._tags = val
+
     def __init__(self):
         super(MispEvent, self).__init__()
         self._id = None
@@ -210,6 +312,7 @@ class MispEvent(MispBaseObject):
         self._publish_timestamp = None
         self._published = None
         self.attributes = MispEvent.Attributes(self)
+        self.tags = MispEvent.Tags(self)
         self.shadowattributes = []
 
     @property
@@ -353,6 +456,16 @@ class MispEvent(MispBaseObject):
             event.attributes.set(attributes)
         except:
             # No attribute, no worries
+            pass
+
+        try:
+            tags = []
+            for tag in obj.Tag:
+                tag_obj = MispTag.from_xml_object(tag)
+                tags.append(tag_obj)
+                event.tags.set(tags)
+        except AttributeError:
+            # No tags
             pass
 
         try:
@@ -936,7 +1049,8 @@ class MispShadowAttribute(MispAttribute):
                 val = getattr(obj, field)
                 setattr(shadowattribute, field, val)
             except AttributeError:
-                print 'ShadowAttributes has no', field, 'field'
+                #print 'ShadowAttributes has no', field, 'field'
+                pass
         return shadowattribute
 
     def to_xml_object(self):

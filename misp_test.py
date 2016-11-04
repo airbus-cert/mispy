@@ -143,6 +143,77 @@ class MispEventTest(unittest.TestCase):
         m.publish_timestamp = d
         self.assertEquals(m.publish_timestamp, int(time.mktime(d.timetuple())))
 
+    def test_tags_in_good_xml(self):
+        s = r"""<Event>
+  <id>42</id>
+  <orgc_id>2</orgc_id>
+  <org_id>2</org_id>
+  <date>2015-10-20</date>
+  <threat_level_id>3</threat_level_id>
+  <info>AGNOSTIC PANDA</info>
+  <published>1</published>
+  <uuid>56278fd8-f2c0-4907-bcca-594e0a3ac101</uuid>
+  <analysis>2</analysis>
+  <timestamp>1445434988</timestamp>
+  <distribution>1</distribution>
+  <publish_timestamp>1445435155</publish_timestamp>
+  <sharing_group_id>0</sharing_group_id>
+  <Org>
+    <id>2</id>
+    <name>ACME and bro.</name>
+    <uuid>56278fd8-f2c0-4907-bcca-594e0a3ac101</uuid>
+  </Org>
+  <Orgc>
+    <id>2</id>
+    <name>ACME Corporation</name>
+    <uuid>56278fd8-f2c0-4907-bcca-594e0a3ac101</uuid>
+  </Orgc>
+  <Attribute>
+    <id>4442</id>
+    <type>md5</type>
+    <category>Payload delivery</category>
+    <to_ids>1</to_ids>
+    <uuid>56c577ed-94e0-4446-a639-40200a3ac101</uuid>
+    <event_id>1172</event_id>
+    <distribution>5</distribution>
+    <timestamp>1455781869</timestamp>
+    <comment/>
+    <sharing_group_id>0</sharing_group_id>
+    <value>a283e768fa12ef33087f07b01f82d6dd</value>
+    <ShadowAttribute/>
+  </Attribute>
+  <ShadowAttribute/>
+  <RelatedEvent/>
+  <Tag><id>5</id><name>APT1</name><colour>#ffad0d</colour><exportable>1</exportable><org_id>0</org_id></Tag>
+  <Tag><id>3</id><name>TLP:RED</name><colour>#04cc18</colour><exportable>1</exportable><org_id>0</org_id></Tag>
+  <Tag><id>7</id><name>CONFIDENTIAL</name><colour>#cccccc</colour><exportable>1</exportable><org_id>0</org_id></Tag>
+</Event>
+"""
+        m = MispEvent.from_xml(s)
+        self.assertEquals(m.uuid, '56278fd8-f2c0-4907-bcca-594e0a3ac101')
+        self.assertEquals(m.id, 42)
+        self.assertEquals(m.org, 'ACME and bro.')
+        self.assertEquals(m.date, '2015-10-20')
+        self.assertEquals(m.threat_level_id, 3)
+        self.assertEquals(m.info, 'AGNOSTIC PANDA')
+        self.assertEquals(m.published, 1)
+        self.assertEquals(m.analysis, 2)
+        self.assertEquals(m.timestamp, 1445434988)
+        self.assertEquals(m.distribution, 1)
+        self.assertEquals(m.orgc, 'ACME Corporation')
+        self.assertEquals(len(m.tags), 3)
+
+class MispTagTest(unittest.TestCase):
+    def test_from_xml(self):
+        s = r"""
+        <Tag><id>3</id><name>TLP:GREEN</name><colour>#04cc18</colour><exportable>1</exportable><org_id>0</org_id></Tag>
+        """
+        tag = MispTag.from_xml(s)
+        self.assertEquals(tag.id, 3)
+        self.assertEquals(tag.name, "TLP:GREEN")
+        self.assertEquals(tag.colour, "#04cc18")
+        self.assertEquals(tag.exportable, True)
+        self.assertEquals(tag.org_id, 0)
 
 class MispAttrTest(unittest.TestCase):
     def test_fromtofrom_xml(self):
