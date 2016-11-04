@@ -27,13 +27,13 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-import lxml
-from lxml import objectify
 import time
 import datetime
 import uuid
-import requests
 import os
+import lxml
+from lxml import objectify
+import requests
 
 TEST_NEEDLE = '68b329da9893e34099c7d8ad5cb9c940'
 TEST_EVT_ID = 540
@@ -89,7 +89,7 @@ class MispBaseObject(object):
         return self._comment
 
     @comment.setter
-    def comment(self):
+    def comment(self, value):
         self._comment = value
 
     @property
@@ -186,7 +186,7 @@ class MispEvent(MispBaseObject):
             .. todo::
                Implement it.
             """
-            raise NotImplemented('Cannot remove attribute yet')
+            raise NotImplementedError('Cannot remove attribute yet')
 
         def __iter__(self):
             return self._attributes.__iter__()
@@ -356,8 +356,8 @@ class MispEvent(MispBaseObject):
             pass
 
         try:
-            event.org =  obj.Org.name
-            event.orgc =  obj.Orgc.name
+            event.org = obj.Org.name
+            event.orgc = obj.Orgc.name
         except Exception as err:
             pass
 
@@ -407,11 +407,12 @@ class MispServer(object):
 
    .. automethod:: __init__
     """
-    def __init__(self, url=DEFAULT_MISP_URL, apikey=MISP_API_KEY):
+    def __init__(self, url=DEFAULT_MISP_URL, apikey=MISP_API_KEY, ssl_chain=MISP_API_KEY):
         """Initializes a MispServer instance.
 
           :param url: Fully qualified URL to the MISP instance
           :param apikey: MISP API key
+          :param ssl_chain: SSL certificate chain
 
         """
         self.url = url
@@ -423,6 +424,7 @@ class MispServer(object):
         self.events = MispServer.Events(self)
         self.attributes = MispServer.Attributes(self)
         self.shadowattributes = MispServer.ShadowAttributes(self)
+        self.verify_ssl = ssl_chain
 
     def _absolute_url(self, path):
         return self.url + path
@@ -436,7 +438,7 @@ class MispServer(object):
         :returns: HTTP raw content (as seen by :class:`requests.Response`)
         """
         url = self._absolute_url(path)
-        resp = requests.post(url, data=body, headers=self.headers, verify=MISP_SSL_CHAIN)
+        resp = requests.post(url, data=body, headers=self.headers, verify=self.verify_ssl)
         if resp.status_code != 200:
             raise MispTransportError('POST %s: returned status=%d', path, resp.status_code)
         return resp.content
@@ -449,7 +451,7 @@ class MispServer(object):
         :returns: HTTP raw content (as seen by :class:`requests.Response`)
         """
         url = self._absolute_url(path)
-        resp = requests.get(url, headers=self.headers, verify=MISP_SSL_CHAIN)
+        resp = requests.get(url, headers=self.headers, verify=self.verify_ssl)
         if resp.status_code != 200:
             raise MispTransportError('GET %s: returned status=%d', path, resp.status_code)
         return resp.content
@@ -553,7 +555,7 @@ class MispServer(object):
 
             """
             assert shadowattribute is not MispShadowAttribute
-            raw = self.server.POST('/shadow_attributes/discard/%d' % shadowattribute.id, '')
+            self.server.POST('/shadow_attributes/discard/%d' % shadowattribute.id, '')
 
     class Attributes(object):
         """
@@ -570,7 +572,7 @@ class MispServer(object):
             :returns: :class:`MispAttribute` object
 
             """
-            resp = self.server.GET('/attributes/%d' % id)
+            response = self.server.GET('/attributes/%d' % id)
             response = objectify.fromstring(raw)
             return MispAttribute.from_xml_object(response.Attribute)
 
@@ -601,7 +603,7 @@ class MispServer(object):
 
             Not implemented.
             """
-            raise NotImplemented()
+            raise NotImplementedError()
 
     class Events(object):
         """
@@ -623,7 +625,6 @@ class MispServer(object):
             """
             raw_evt = self.server.GET('/events/%d' % evtid)
             response = objectify.fromstring(raw_evt)
-            print raw_evt
             return MispEvent.from_xml_object(response.Event)
 
         def update(self, event):
@@ -676,7 +677,7 @@ class MispServer(object):
             url = '/events/index/sort:%s/direction:%s/limit:%d' % (sort, direction, limit)
             raw = self.server.GET(url)
             response = objectify.fromstring(raw)
-            events=[]
+            events = []
             for evtobj in response.Event:
                 events.append(MispEvent.from_xml_object(evtobj))
             return events
@@ -728,7 +729,7 @@ class MispServer(object):
             raw = lxml.etree.tostring(request)
             raw = self.server.POST('/events/restSearch/download', raw)
             response = objectify.fromstring(raw)
-            events=[]
+            events = []
             for evtobj in response.Event:
                 events.append(MispEvent.from_xml_object(evtobj))
             return events
@@ -922,7 +923,7 @@ class MispShadowAttribute(MispAttribute):
         prop.comment = attr.comment
         prop.value = attr.value
         prop.category = attr.category
-        prop.to_ids= attr.to_ids
+        prop.to_ids = attr.to_ids
         return prop
 
     @staticmethod
