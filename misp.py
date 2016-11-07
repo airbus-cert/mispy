@@ -27,13 +27,13 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-import lxml
-from lxml import objectify
 import time
 import datetime
 import uuid
-import requests
 import os
+import lxml
+from lxml import objectify
+import requests
 
 TEST_NEEDLE = '68b329da9893e34099c7d8ad5cb9c940'
 TEST_EVT_ID = 540
@@ -89,7 +89,7 @@ class MispBaseObject(object):
         return self._comment
 
     @comment.setter
-    def comment(self):
+    def comment(self, value):
         self._comment = value
 
     @property
@@ -140,6 +140,90 @@ class MispBaseObject(object):
         self._analysis = value or 0
 
 
+class MispTag(MispBaseObject):
+    """
+    Object for handling MISP tags in events
+    """
+    def __init__(self):
+        super(MispTag, self).__init__()
+        self._id = None
+        self._name = None
+        self._colour = None
+        self._org_id = None
+        self._exportable = None
+
+    @property
+    def id(self):
+        return self._id
+
+    @id.setter
+    def id(self, value):
+        if value:
+            self._id = int(value)
+
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, value):
+        if value:
+            self._name = value
+
+    @property
+    def colour(self):
+        return self._colour
+
+    @colour.setter
+    def colour(self, value):
+        if value:
+            self._colour = value
+
+    @property
+    def org_id(self):
+        return self._org_id
+
+    @org_id.setter
+    def org_id(self, value):
+        if value is not None:
+            self._org_id = int(value)
+
+    @property
+    def exportable(self):
+        return self._exportable
+
+    @exportable.setter
+    def exportable(self, value):
+        if value:
+            self._exportable = (int(value) == 1)
+
+    @staticmethod
+    def from_xml(s):
+        """
+        Static method converting a serialized XML string into a :class:`MispTag` object.
+
+        :example:
+
+        >>> s = '<Tag><id>3</id><name>TLP:GREEN</name><colour>#04cc18</colour><exportable>1</exportable><org_id>0</org_id></Tag>'
+        >>> a = MispTag.from_xml(s)
+        >>> type(a)
+        <class 'misp.MispTag'>
+
+        """
+        attr = objectify.fromstring(s)
+        return MispTag.from_xml_object(attr)
+
+    @staticmethod
+    def from_xml_object(obj):
+        if obj.tag.lower() != 'tag':
+            raise ValueError('Invalid Tag XML')
+        attr = MispTag()
+        for field in ['id', 'name', 'colour', 'exportable', 'org_id']:
+            val = getattr(obj, field)
+            setattr(attr, field, val)
+        return attr
+
+
 class MispEvent(MispBaseObject):
     class Attributes(object):
         """
@@ -186,7 +270,7 @@ class MispEvent(MispBaseObject):
             .. todo::
                Implement it.
             """
-            raise NotImplemented('Cannot remove attribute yet')
+            raise NotImplementedError('Cannot remove attribute yet')
 
         def __iter__(self):
             return self._attributes.__iter__()
@@ -196,6 +280,24 @@ class MispEvent(MispBaseObject):
 
         def set(self, val):
             self._attributes = val
+
+    class Tags(object):
+        """
+        Module that provides glue between :class:`MispEvent` and :class:`MispTag`
+
+        """
+        def __init__(self, event):
+            self.event = event
+            self._tags = []
+
+        def __iter__(self):
+            return self._tags.__iter__()
+
+        def __len__(self):
+            return len(self._tags)
+
+        def set(self, val):
+            self._tags = val
 
     def __init__(self):
         super(MispEvent, self).__init__()
@@ -210,6 +312,7 @@ class MispEvent(MispBaseObject):
         self._publish_timestamp = None
         self._published = None
         self.attributes = MispEvent.Attributes(self)
+        self.tags = MispEvent.Tags(self)
         self.shadowattributes = []
 
     @property
@@ -356,8 +459,18 @@ class MispEvent(MispBaseObject):
             pass
 
         try:
-            event.org =  obj.Org.name
-            event.orgc =  obj.Orgc.name
+            tags = []
+            for tag in obj.Tag:
+                tag_obj = MispTag.from_xml_object(tag)
+                tags.append(tag_obj)
+                event.tags.set(tags)
+        except AttributeError:
+            # No tags
+            pass
+
+        try:
+            event.org = obj.Org.name
+            event.orgc = obj.Orgc.name
         except Exception as err:
             pass
 
@@ -407,11 +520,12 @@ class MispServer(object):
 
    .. automethod:: __init__
     """
-    def __init__(self, url=DEFAULT_MISP_URL, apikey=MISP_API_KEY):
+    def __init__(self, url=DEFAULT_MISP_URL, apikey=MISP_API_KEY, ssl_chain=MISP_API_KEY):
         """Initializes a MispServer instance.
 
           :param url: Fully qualified URL to the MISP instance
           :param apikey: MISP API key
+          :param ssl_chain: SSL certificate chain
 
         """
         self.url = url
@@ -423,6 +537,7 @@ class MispServer(object):
         self.events = MispServer.Events(self)
         self.attributes = MispServer.Attributes(self)
         self.shadowattributes = MispServer.ShadowAttributes(self)
+        self.verify_ssl = ssl_chain
 
     def _absolute_url(self, path):
         return self.url + path
@@ -436,7 +551,7 @@ class MispServer(object):
         :returns: HTTP raw content (as seen by :class:`requests.Response`)
         """
         url = self._absolute_url(path)
-        resp = requests.post(url, data=body, headers=self.headers, verify=MISP_SSL_CHAIN)
+        resp = requests.post(url, data=body, headers=self.headers, verify=self.verify_ssl)
         if resp.status_code != 200:
             raise MispTransportError('POST %s: returned status=%d', path, resp.status_code)
         return resp.content
@@ -449,7 +564,7 @@ class MispServer(object):
         :returns: HTTP raw content (as seen by :class:`requests.Response`)
         """
         url = self._absolute_url(path)
-        resp = requests.get(url, headers=self.headers, verify=MISP_SSL_CHAIN)
+        resp = requests.get(url, headers=self.headers, verify=self.verify_ssl)
         if resp.status_code != 200:
             raise MispTransportError('GET %s: returned status=%d', path, resp.status_code)
         return resp.content
@@ -553,7 +668,7 @@ class MispServer(object):
 
             """
             assert shadowattribute is not MispShadowAttribute
-            raw = self.server.POST('/shadow_attributes/discard/%d' % shadowattribute.id, '')
+            self.server.POST('/shadow_attributes/discard/%d' % shadowattribute.id, '')
 
     class Attributes(object):
         """
@@ -570,7 +685,7 @@ class MispServer(object):
             :returns: :class:`MispAttribute` object
 
             """
-            resp = self.server.GET('/attributes/%d' % id)
+            response = self.server.GET('/attributes/%d' % id)
             response = objectify.fromstring(raw)
             return MispAttribute.from_xml_object(response.Attribute)
 
@@ -601,7 +716,7 @@ class MispServer(object):
 
             Not implemented.
             """
-            raise NotImplemented()
+            raise NotImplementedError()
 
     class Events(object):
         """
@@ -623,7 +738,6 @@ class MispServer(object):
             """
             raw_evt = self.server.GET('/events/%d' % evtid)
             response = objectify.fromstring(raw_evt)
-            print raw_evt
             return MispEvent.from_xml_object(response.Event)
 
         def update(self, event):
@@ -676,7 +790,7 @@ class MispServer(object):
             url = '/events/index/sort:%s/direction:%s/limit:%d' % (sort, direction, limit)
             raw = self.server.GET(url)
             response = objectify.fromstring(raw)
-            events=[]
+            events = []
             for evtobj in response.Event:
                 events.append(MispEvent.from_xml_object(evtobj))
             return events
@@ -728,7 +842,7 @@ class MispServer(object):
             raw = lxml.etree.tostring(request)
             raw = self.server.POST('/events/restSearch/download', raw)
             response = objectify.fromstring(raw)
-            events=[]
+            events = []
             for evtobj in response.Event:
                 events.append(MispEvent.from_xml_object(evtobj))
             return events
@@ -738,16 +852,29 @@ attr_categories = ['Internal reference', 'Targeting data', 'Antivirus detection'
            'Payload delivery', 'Payload installation', 'Artifacts dropped',
            'Persistence mechanism', 'Network activity', 'Payload type',
            'Attribution', 'External analysis', 'Other', 'Advisory PDF',
-           'Advisory YAML' ]
+           'Advisory YAML', 'Financial fraud' ]
 
-attr_types = ['md5', 'sha1', 'sha256', 'filename', 'filename|md5', 'filename|sha1',
-         'filename|sha256', 'ip-src', 'ip-dst', 'hostname', 'domain', 'url',
-         'user-agent', 'http-method', 'regkey', 'regkey|value', 'AS', 'snort',
-         'pattern-in-file', 'pattern-in-traffic', 'pattern-in-memory', 'named pipe',
-         'mutex', 'vulnerability', 'attachment', 'malware-sample', 'link', 'comment',
-         'text', 'email-src', 'email-dst', 'email-subject', 'email-attachment',
-         'yara', 'target-user', 'target-email', 'target-machine', 'target-org',
-         'target-location', 'target-external', 'other']
+attr_types = ['md5', 'sha1', 'sha256', 'filename', 'pdb',
+            'filename|md5', 'filename|sha1', 'filename|sha256', 'ip-src',
+            'ip-dst', 'hostname', 'domain', 'domain|ip', 'email-src', 'email-dst',
+            'email-subject', 'email-attachment', 'url', 'http-method', 'user-agent',
+            'regkey', 'regkey|value', 'AS', 'snort', 'pattern-in-file',
+            'pattern-in-traffic', 'pattern-in-memory', 'yara', 'vulnerability',
+            'attachment', 'malware-sample', 'link', 'comment', 'text', 'other',
+            'named pipe', 'mutex', 'target-user', 'target-email', 'target-machine',
+            'target-org', 'target-location', 'target-external', 'btc', 'iban',
+            'bic', 'bank-account-nr', 'aba-rtn', 'bin', 'cc-number', 'prtn',
+            'threat-actor', 'campaign-name', 'campaign-id', 'malware-type',
+            'uri', 'authentihash', 'ssdeep', 'imphash', 'pehash', 'sha224',
+            'sha384', 'sha512', 'sha512/224', 'sha512/256', 'tlsh',
+            'filename|authentihash', 'filename|ssdeep', 'filename|imphash',
+            'filename|pehash', 'filename|sha224', 'filename|sha384',
+            'filename|sha512', 'filename|sha512/224', 'filename|sha512/256',
+            'filename|tlsh', 'windows-scheduled-task', 'windows-service-name',
+            'windows-service-displayname', 'whois-registrant-email',
+            'whois-registrant-phone', 'whois-registrant-name', 'whois-registrar',
+            'whois-creation-date', 'targeted-threat-index', 'mailslot', 'pipe',
+            'ssl-cert-attributes', 'x509-fingerprint-sha1']
 
 class MispAttribute(MispBaseObject):
     def __init__(self):
@@ -922,7 +1049,7 @@ class MispShadowAttribute(MispAttribute):
         prop.comment = attr.comment
         prop.value = attr.value
         prop.category = attr.category
-        prop.to_ids= attr.to_ids
+        prop.to_ids = attr.to_ids
         return prop
 
     @staticmethod
@@ -935,7 +1062,8 @@ class MispShadowAttribute(MispAttribute):
                 val = getattr(obj, field)
                 setattr(shadowattribute, field, val)
             except AttributeError:
-                print 'ShadowAttributes has no', field, 'field'
+                #print 'ShadowAttributes has no', field, 'field'
+                pass
         return shadowattribute
 
     def to_xml_object(self):
