@@ -315,6 +315,9 @@ class MispEvent(MispBaseObject):
         self.tags = MispEvent.Tags(self)
         self.shadowattributes = []
 
+    def __repr__(self):
+        return "'%i: %s'" % (self._id, self._info)
+
     @property
     def attribute_count(self):
         """Read-only variable that counts the number of attributes"""
@@ -708,15 +711,60 @@ class MispServer(object):
             raw = attr.to_xml()
             raw = self.server.POST('/attributes/%d' % attr.id, raw)
 
-        def search(self):
+        def search(self, value=None, type=None, category=None, tag=None, fromd=None, tod=None, last=None):
             """
             Searches an attribute on the MISP server
 
-            .. todo::
+            :param value: value of the attribute to be searched (as a string)
+            :param type: Type of the attribute to be searched (as a string)
+            :param category: Category of the attribute to be searched (as a string)
+            :param tag: To include a tag in the results just write its names into this parameter. To exclude a tag prepend it with a '!'. You can also chain several tag commands together with the '&&' operator. Please be aware the colons (:) cannot be used in the tag search. Use semicolons instead (the search will automatically search for colons instead).
+            :param fromd: Events with the date set to a date after the one specified in the from field (format: 2015-02-15). This filter will use the date of the event.
+            :param tod: Events with the date set to a date before the one specified in the to field (format: 2015-02-15). This filter will use the date of the event.
+            :param last: Events published within the last x amount of time, where x can be defined in days, hours, minutes (for example 5d or 12h or 30m). This filter will use the published timestamp of the event.
+            .. todo:: support by type/category/tags
 
-            Not implemented.
+            :example:
+            >>> server = MispServer()
+            >>> attr = server.attributes.search("google.com")
+            [MispEvent, MispEvent...]
+
             """
-            raise NotImplementedError()
+            request = '<request>'
+            if value:
+                request += '<value>%s</value>' % value
+            if type:
+                request += '<type>%s</type>' % type
+            if category:
+                request += '<category>%s</category>' % category
+            if tag:
+                request += '<tag>%s</tag>' % tag
+            if fromd:
+                request += '<from>%s</from>' % fromd
+            if tod:
+                request += '<to>%s</to>' % tod
+            if last:
+                request += '<last>%s</last>' % last
+
+            request += '</request>'
+
+            try:
+                raw = self.server.POST(
+                        '/events/restSearch/download',
+                        request
+                )
+            except MispTransportError as err:
+                if err[2] == 404:
+                    # 404 not found
+                    return []
+                else:
+                    # Other problem keep the exception
+                    raise err
+            response = objectify.fromstring(raw)
+            events = []
+            for evtobj in response.Event:
+                events.append(MispEvent.from_xml_object(evtobj))
+            return events
 
     class Events(object):
         """

@@ -34,6 +34,14 @@ event.attributes.add(new_attr)
 server.events.update(event)
 ```
 
+Search for an attribute
+```python
+server = MispServer(url=URL, apikey=APIKEY)
+events = server.attributes.search(value="087bffa8a570079948310dc9731c5709")
+for event in events:
+    print("%i - %s" % (event.id, event.info))
+```
+
 ## Credits
 
 Airbus Group CERT
