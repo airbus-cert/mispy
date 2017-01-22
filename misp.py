@@ -451,6 +451,8 @@ class MispEvent(MispBaseObject):
                       'timestamp', 'distribution', 'publish_timestamp', 'id']:
             val = getattr(obj, field)
             setattr(event, field, val)
+
+        #FIXME: this except catch a lot of unknown bugs
         try:
             attributes = []
             for attr in obj.Attribute:
@@ -571,6 +573,18 @@ class MispServer(object):
         if resp.status_code != 200:
             raise MispTransportError('GET %s: returned status=%d', path, resp.status_code)
         return resp.content
+
+    def download(self, attr):
+        """
+        Download an attribute attachment
+        (if type is malware-sample or attachment only)
+        :param attr: attribute (should be MispAttribute instance)
+        :returns: value of the attachment
+        """
+        if attr.type not in ['malware-sample', 'attachment']:
+            raise ValueError('Only malware-sample and attachment can be downloaded')
+
+        return self.GET('/attributes/downloadAttachment/download/%i' % attr.id)
 
     class ShadowAttributes(object):
         """
@@ -730,28 +744,32 @@ class MispServer(object):
             [MispEvent, MispEvent...]
 
             """
-            request = '<request>'
+            request = objectify.Element('request')
             if value:
-                request += '<value>%s</value>' % value
+                request.value = value
             if type:
-                request += '<type>%s</type>' % type
+                request.type = type
             if category:
-                request += '<category>%s</category>' % category
+                request.category = category
             if tag:
-                request += '<tag>%s</tag>' % tag
+                request.tag = tag
             if fromd:
-                request += '<from>%s</from>' % fromd
+                #Dirty trick to have a from tag
+                setattr(request, "from", fromd)
             if tod:
-                request += '<to>%s</to>' % tod
+                request.to = tod
             if last:
-                request += '<last>%s</last>' % last
+                request.last = last
 
-            request += '</request>'
+            lxml.objectify.deannotate(request, xsi_nil=True)
+            lxml.etree.cleanup_namespaces(request)
+            raw = lxml.etree.tostring(request)
+            print(raw)
 
             try:
                 raw = self.server.POST(
                         '/events/restSearch/download',
-                        request
+                        raw
                 )
             except MispTransportError as err:
                 if err[2] == 404:
@@ -922,7 +940,7 @@ attr_types = ['md5', 'sha1', 'sha256', 'filename', 'pdb',
             'windows-service-displayname', 'whois-registrant-email',
             'whois-registrant-phone', 'whois-registrant-name', 'whois-registrar',
             'whois-creation-date', 'targeted-threat-index', 'mailslot', 'pipe',
-            'ssl-cert-attributes', 'x509-fingerprint-sha1']
+            'ssl-cert-attributes', 'x509-fingerprint-sha1', 'ip-dst|port']
 
 class MispAttribute(MispBaseObject):
     def __init__(self):
@@ -1110,7 +1128,6 @@ class MispShadowAttribute(MispAttribute):
                 val = getattr(obj, field)
                 setattr(shadowattribute, field, val)
             except AttributeError:
-                #print 'ShadowAttributes has no', field, 'field'
                 pass
         return shadowattribute
 

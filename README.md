@@ -16,6 +16,8 @@ server = MispServer(url=URL, apikey=APIKEY)
 event = server.events.get(42)
 for attr in event.attributes:
     print("%s %s %s" % (attr.category, attr.type, attr.value))
+    if attr.type == 'malware-sample':
+        server.download(attr)
 for tag in event.tags:
     print("%s" % tag.name)
 ```
