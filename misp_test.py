@@ -23,22 +23,46 @@ from misp import *
 class MispEventTest(unittest.TestCase):
     def test_good_xml(self):
         s = r"""<Event>
-    <id>42</id>
-    <org>ACME and bro.</org>
-    <date>2015-10-20</date>
-    <threat_level_id>3</threat_level_id>
-    <info>AGNOSTIC PANDA</info>
-    <published>1</published>
+  <id>42</id>
+  <orgc_id>2</orgc_id>
+  <org_id>2</org_id>
+  <date>2015-10-20</date>
+  <threat_level_id>3</threat_level_id>
+  <info>AGNOSTIC PANDA</info>
+  <published>1</published>
+  <uuid>56278fd8-f2c0-4907-bcca-594e0a3ac101</uuid>
+  <analysis>2</analysis>
+  <timestamp>1445434988</timestamp>
+  <distribution>1</distribution>
+  <publish_timestamp>1445435155</publish_timestamp>
+  <sharing_group_id>0</sharing_group_id>
+  <Org>
+    <id>2</id>
+    <name>ACME and bro.</name>
     <uuid>56278fd8-f2c0-4907-bcca-594e0a3ac101</uuid>
-    <attribute_count>8</attribute_count>
-    <analysis>2</analysis>
-    <timestamp>1445434988</timestamp>
-    <distribution>1</distribution>
-    <proposal_email_lock>0</proposal_email_lock>
-    <orgc>ACME Corporation</orgc>
-    <locked>0</locked>
-    <publish_timestamp>1445435155</publish_timestamp>
-    </Event>
+  </Org>
+  <Orgc>
+    <id>2</id>
+    <name>ACME Corporation</name>
+    <uuid>56278fd8-f2c0-4907-bcca-594e0a3ac101</uuid>
+  </Orgc>
+  <Attribute>
+    <id>4442</id>
+    <type>md5</type>
+    <category>Payload delivery</category>
+    <to_ids>1</to_ids>
+    <uuid>56c577ed-94e0-4446-a639-40200a3ac101</uuid>
+    <event_id>1172</event_id>
+    <distribution>5</distribution>
+    <timestamp>1455781869</timestamp>
+    <comment/>
+    <sharing_group_id>0</sharing_group_id>
+    <value>a283e768fa12ef33087f07b01f82d6dd</value>
+    <ShadowAttribute/>
+  </Attribute>
+  <ShadowAttribute/>
+  <RelatedEvent/>
+</Event>
 """
         m = MispEvent.from_xml(s)
         self.assertEquals(m.uuid, '56278fd8-f2c0-4907-bcca-594e0a3ac101')
@@ -54,12 +78,23 @@ class MispEventTest(unittest.TestCase):
         self.assertEquals(m.orgc, 'ACME Corporation')
         self.assertEquals(m.locked, 0)
         self.assertEquals(m.publish_timestamp, 1445435155)
+        for attr in m.attributes:
+            self.assertEquals(attr.value, 'a283e768fa12ef33087f07b01f82d6dd')
+
 
     def test_good_xml_full_generation(self):
         s = r"""<Event>
     <id>42</id>
-    <org>ACME and bro.</org>
-    <date>2015-10-20</date>
+    <Org>
+      <name>ACME and bro.</name>
+      <id>12</id>
+      <uuid>464d9146-2c34-43df-906a-7bc40a3ac101</uuid>
+    </Org>
+    <Orgc>
+      <name>ACME Corporation</name>
+      <id>13</id>
+      <uuid>164d9146-2c34-43df-906a-7bc40a3ac101</uuid>
+    </Orgc>    <date>2015-10-20</date>
     <threat_level_id>3</threat_level_id>
     <info>AGNOSTIC PANDA</info>
     <published>1</published>
@@ -69,7 +104,6 @@ class MispEventTest(unittest.TestCase):
     <timestamp>1445434988</timestamp>
     <distribution>1</distribution>
     <proposal_email_lock>0</proposal_email_lock>
-    <orgc>ACME Corporation</orgc>
     <locked>0</locked>
     <publish_timestamp>1445435155</publish_timestamp>
     </Event>
@@ -109,71 +143,139 @@ class MispEventTest(unittest.TestCase):
         m.publish_timestamp = d
         self.assertEquals(m.publish_timestamp, int(time.mktime(d.timetuple())))
 
+    def test_tags_in_good_xml(self):
+        s = r"""<Event>
+  <id>42</id>
+  <orgc_id>2</orgc_id>
+  <org_id>2</org_id>
+  <date>2015-10-20</date>
+  <threat_level_id>3</threat_level_id>
+  <info>AGNOSTIC PANDA</info>
+  <published>1</published>
+  <uuid>56278fd8-f2c0-4907-bcca-594e0a3ac101</uuid>
+  <analysis>2</analysis>
+  <timestamp>1445434988</timestamp>
+  <distribution>1</distribution>
+  <publish_timestamp>1445435155</publish_timestamp>
+  <sharing_group_id>0</sharing_group_id>
+  <Org>
+    <id>2</id>
+    <name>ACME and bro.</name>
+    <uuid>56278fd8-f2c0-4907-bcca-594e0a3ac101</uuid>
+  </Org>
+  <Orgc>
+    <id>2</id>
+    <name>ACME Corporation</name>
+    <uuid>56278fd8-f2c0-4907-bcca-594e0a3ac101</uuid>
+  </Orgc>
+  <Attribute>
+    <id>4442</id>
+    <type>md5</type>
+    <category>Payload delivery</category>
+    <to_ids>1</to_ids>
+    <uuid>56c577ed-94e0-4446-a639-40200a3ac101</uuid>
+    <event_id>1172</event_id>
+    <distribution>5</distribution>
+    <timestamp>1455781869</timestamp>
+    <comment/>
+    <sharing_group_id>0</sharing_group_id>
+    <value>a283e768fa12ef33087f07b01f82d6dd</value>
+    <ShadowAttribute/>
+  </Attribute>
+  <ShadowAttribute/>
+  <RelatedEvent/>
+  <Tag><id>5</id><name>APT1</name><colour>#ffad0d</colour><exportable>1</exportable><org_id>0</org_id></Tag>
+  <Tag><id>3</id><name>TLP:RED</name><colour>#04cc18</colour><exportable>1</exportable><org_id>0</org_id></Tag>
+  <Tag><id>7</id><name>CONFIDENTIAL</name><colour>#cccccc</colour><exportable>1</exportable><org_id>0</org_id></Tag>
+</Event>
+"""
+        m = MispEvent.from_xml(s)
+        self.assertEquals(m.uuid, '56278fd8-f2c0-4907-bcca-594e0a3ac101')
+        self.assertEquals(m.id, 42)
+        self.assertEquals(m.org, 'ACME and bro.')
+        self.assertEquals(m.date, '2015-10-20')
+        self.assertEquals(m.threat_level_id, 3)
+        self.assertEquals(m.info, 'AGNOSTIC PANDA')
+        self.assertEquals(m.published, 1)
+        self.assertEquals(m.analysis, 2)
+        self.assertEquals(m.timestamp, 1445434988)
+        self.assertEquals(m.distribution, 1)
+        self.assertEquals(m.orgc, 'ACME Corporation')
+        self.assertEquals(len(m.tags), 3)
+
+class MispTagTest(unittest.TestCase):
+    def test_from_xml(self):
+        s = r"""
+        <Tag><id>3</id><name>TLP:GREEN</name><colour>#04cc18</colour><exportable>1</exportable><org_id>0</org_id></Tag>
+        """
+        tag = MispTag.from_xml(s)
+        self.assertEquals(tag.id, 3)
+        self.assertEquals(tag.name, "TLP:GREEN")
+        self.assertEquals(tag.colour, "#04cc18")
+        self.assertEquals(tag.exportable, True)
+        self.assertEquals(tag.org_id, 0)
 
 class MispAttrTest(unittest.TestCase):
     def test_fromtofrom_xml(self):
         s = r"""<Attribute>
-      <id>87183</id>
-      <type>regkey|value</type>
-      <category>Persistence mechanism</category>
-      <to_ids>1</to_ids>
-      <uuid>562795f9-5723-4b96-8940-599b0a3ac101</uuid>
-      <event_id>486</event_id>
-      <distribution>1</distribution>
-      <timestamp>1445434872</timestamp>
-      <comment>loooool</comment>
-      <value>lol</value>
-      <ShadowAttribute/>
-    </Attribute>"""
+    <id>87183</id>
+    <type>md5</type>
+    <category>Payload delivery</category>
+    <to_ids>1</to_ids>
+    <uuid>56c577ed-94e0-4446-a639-40200a3ac101</uuid>
+    <event_id>42</event_id>
+    <distribution>5</distribution>
+    <timestamp>1445434872</timestamp>
+    <comment>loooool</comment>
+    <sharing_group_id>0</sharing_group_id>
+    <value>a283e768fa12ef33087f07b01f82d6dd</value>
+    <ShadowAttribute/>
+  </Attribute>"""
         a = MispAttribute.from_xml(s)
         s = a.to_xml()
         a = MispAttribute.from_xml(s)
         self.assertEquals(a.id, 87183)
-        self.assertEquals(a.type, 'regkey|value')
-        self.assertEquals(a.category, 'Persistence mechanism')
+        self.assertEquals(a.type, 'md5')
+        self.assertEquals(a.category, 'Payload delivery')
         self.assertEquals(a.to_ids, 1)
-        self.assertEquals(a.uuid, '562795f9-5723-4b96-8940-599b0a3ac101')
-        self.assertEquals(a.event_id, 486)
-        self.assertEquals(a.distribution, 1)
+        self.assertEquals(a.uuid, '56c577ed-94e0-4446-a639-40200a3ac101')
+        self.assertEquals(a.event_id, 42)
+        self.assertEquals(a.distribution, 5)
         self.assertEquals(a.timestamp, 1445434872)
         self.assertEquals(a.comment, 'loooool')
-        self.assertEquals(a.value, 'lol')
+        self.assertEquals(a.value, 'a283e768fa12ef33087f07b01f82d6dd')
 
     def test_from_xml(self):
         s = r"""<Attribute>
-      <id>87183</id>
-      <type>regkey|value</type>
-      <category>Persistence mechanism</category>
-      <to_ids>1</to_ids>
-      <uuid>562795f9-5723-4b96-8940-599b0a3ac101</uuid>
-      <event_id>486</event_id>
-      <distribution>1</distribution>
-      <timestamp>1445434872</timestamp>
-      <comment>loooool</comment>
-      <value>lol</value>
-      <ShadowAttribute/>
-    </Attribute>"""
+    <id>87183</id>
+    <type>md5</type>
+    <category>Payload delivery</category>
+    <to_ids>1</to_ids>
+    <uuid>56c577ed-94e0-4446-a639-40200a3ac101</uuid>
+    <event_id>42</event_id>
+    <distribution>5</distribution>
+    <timestamp>1445434872</timestamp>
+    <comment>loooool</comment>
+    <sharing_group_id>0</sharing_group_id>
+    <value>a283e768fa12ef33087f07b01f82d6dd</value>
+    <ShadowAttribute/>
+  </Attribute>"""
         a = MispAttribute.from_xml(s)
         self.assertEquals(a.id, 87183)
-        self.assertEquals(a.type, 'regkey|value')
-        self.assertEquals(a.category, 'Persistence mechanism')
+        self.assertEquals(a.type, 'md5')
+        self.assertEquals(a.category, 'Payload delivery')
         self.assertEquals(a.to_ids, 1)
-        self.assertEquals(a.uuid, '562795f9-5723-4b96-8940-599b0a3ac101')
-        self.assertEquals(a.event_id, 486)
-        self.assertEquals(a.distribution, 1)
+        self.assertEquals(a.uuid, '56c577ed-94e0-4446-a639-40200a3ac101')
+        self.assertEquals(a.event_id, 42)
+        self.assertEquals(a.distribution, 5)
         self.assertEquals(a.timestamp, 1445434872)
         self.assertEquals(a.comment, 'loooool')
-        self.assertEquals(a.value, 'lol')
+        self.assertEquals(a.value, 'a283e768fa12ef33087f07b01f82d6dd')
 
     def test_bad_category(self):
         attr = MispAttribute()
         with self.assertRaises(ValueError):
             attr.category = 'foobar'
-
-    def test_bad_category(self):
-        attr = MispAttribute()
-        with self.assertRaises(ValueError):
-            attr.distribution = 4
 
     def test_bad_threat_lvl(self):
         attr = MispAttribute()
@@ -188,14 +290,43 @@ class MispAttrTest(unittest.TestCase):
     def test_good_inner_attribute(self):
         attr = MispAttribute()
 
+    def test_bad_types(self):
+        attr = MispAttribute()
+        with self.assertRaises(ValueError):
+            attr.type = 'foobar'
+
+        valid_types = ['md5', 'sha1', 'sha256', 'filename', 'pdb',
+            'filename|md5', 'filename|sha1', 'filename|sha256', 'ip-src',
+            'ip-dst', 'hostname', 'domain', 'domain|ip', 'email-src', 'email-dst',
+            'email-subject', 'email-attachment', 'url', 'http-method', 'user-agent',
+            'regkey', 'regkey|value', 'AS', 'snort', 'pattern-in-file',
+            'pattern-in-traffic', 'pattern-in-memory', 'yara', 'vulnerability',
+            'attachment', 'malware-sample', 'link', 'comment', 'text', 'other',
+            'named pipe', 'mutex', 'target-user', 'target-email', 'target-machine',
+            'target-org', 'target-location', 'target-external', 'btc', 'iban',
+            'bic', 'bank-account-nr', 'aba-rtn', 'bin', 'cc-number', 'prtn',
+            'threat-actor', 'campaign-name', 'campaign-id', 'malware-type',
+            'uri', 'authentihash', 'ssdeep', 'imphash', 'pehash', 'sha224',
+            'sha384', 'sha512', 'sha512/224', 'sha512/256', 'tlsh',
+            'filename|authentihash', 'filename|ssdeep', 'filename|imphash',
+            'filename|pehash', 'filename|sha224', 'filename|sha384',
+            'filename|sha512', 'filename|sha512/224', 'filename|sha512/256',
+            'filename|tlsh', 'windows-scheduled-task', 'windows-service-name',
+            'windows-service-displayname', 'whois-registrant-email',
+            'whois-registrant-phone', 'whois-registrant-name', 'whois-registrar',
+            'whois-creation-date', 'targeted-threat-index', 'mailslot', 'pipe',
+            'ssl-cert-attributes', 'x509-fingerprint-sha1']
+        for t in valid_types:
+            attr.type = t
+
 
 class MispServerTest(unittest.TestCase):
-    def test_get_event(self):
+    def disabled_test_get_event(self):
         m = MispServer()
         evt = m.events.get(TEST_EVT_ID)
         self.assertEquals(evt.id, TEST_EVT_ID)
 
-    def test_search_event(self):
+    def disabled_test_search_event(self):
         m = MispServer()
         evt=m.events.search(value=TEST_NEEDLE)
         self.assertEquals(len(evt), 1)
@@ -222,7 +353,7 @@ class MispServerTest(unittest.TestCase):
         e.distribution = 0
         m.events.put(e)
 
-    def test_modify_event(self):
+    def disabled_test_modify_event(self):
         m = MispServer()
         e = m.events.get(TEST_EVT_ID)
         e.timestamp = datetime.datetime.now()
@@ -234,7 +365,7 @@ class MispServerTest(unittest.TestCase):
         e.attributes.add(a)
         m.events.update(e)
 
-    def test_modify_attr(self):
+    def disabled_test_modify_attr(self):
         m = MispServer()
         event = m.events.get(TEST_EVT_ID)
         updateme=None
