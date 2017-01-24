@@ -2,6 +2,7 @@
 
 
 [![Documentation built](https://readthedocs.org/projects/python-misp/badge/?version=latest)](http://python-misp.readthedocs.org/en/latest/?badge=latest)
+[![Continuous integration](https://travis-ci.org/nbareil/python-misp.svg?branch=master)](https://travis-ci.org/nbareil/python-misp)
 
 A pythonic MISP module.
 
