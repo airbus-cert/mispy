@@ -35,6 +35,12 @@ import lxml
 from lxml import objectify
 import requests
 
+# Fix Python 3.x.
+try:
+    UNICODE_EXISTS = bool(type(unicode))
+except NameError:
+    unicode = lambda s: str(s)
+
 TEST_NEEDLE = '68b329da9893e34099c7d8ad5cb9c940'
 TEST_EVT_ID = 540
 TEST_ATTR_ID = 87516
