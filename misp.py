@@ -531,7 +531,7 @@ class MispServer(object):
 
    .. automethod:: __init__
     """
-    def __init__(self, url=DEFAULT_MISP_URL, apikey=MISP_API_KEY, ssl_chain=MISP_API_KEY):
+    def __init__(self, url=DEFAULT_MISP_URL, apikey=MISP_API_KEY, ssl_chain=MISP_SSL_CHAIN):
         """Initializes a MispServer instance.
 
           :param url: Fully qualified URL to the MISP instance
