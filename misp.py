@@ -34,6 +34,7 @@ import os
 import lxml
 from lxml import objectify
 import requests
+import json
 
 # Fix Python 3.x.
 try:
@@ -548,12 +549,13 @@ class MispServer(object):
         self.events = MispServer.Events(self)
         self.attributes = MispServer.Attributes(self)
         self.shadowattributes = MispServer.ShadowAttributes(self)
+        self.sightings = MispServer.Sightings(self)
         self.verify_ssl = ssl_chain
 
     def _absolute_url(self, path):
         return self.url + path
 
-    def POST(self, path, body):
+    def POST(self, path, body, xml=True):
         """
         Raw POST to the MISP server
 
@@ -562,7 +564,15 @@ class MispServer(object):
         :returns: HTTP raw content (as seen by :class:`requests.Response`)
         """
         url = self._absolute_url(path)
-        resp = requests.post(url, data=body, headers=self.headers, verify=self.verify_ssl)
+        headers = dict(self.headers)
+        if xml:
+            headers['Content-Type'] = 'application/xml'
+            headers['Accept'] = 'application/xml'
+        else:
+            headers['Content-Type'] = 'application/json'
+            headers['Accept'] = 'application/json'
+
+        resp = requests.post(url, data=body, headers=headers, verify=self.verify_ssl)
         if resp.status_code != 200:
             raise MispTransportError('POST %s: returned status=%d', path, resp.status_code)
         return resp.content
@@ -787,6 +797,49 @@ class MispServer(object):
             for evtobj in response.Event:
                 events.append(MispEvent.from_xml_object(evtobj))
             return events
+
+    class Sightings:
+        def __init__(self, server):
+            self.server = server
+
+        def report_sighting(self, *args, **kwargs):
+            '''Reports a sighting.
+            
+            See :function:`add()` function for more details about the parameters.'''
+            return self.add(type=0, *args, **kwargs)
+
+        def report_false_positive(self, *args, **kwargs):
+            '''Reports a false-positive finding.
+            
+            See :function:`add()` function for more details about the parameters.'''
+            return self.add(type=1, *args, **kwargs)
+
+        def add(self, id=None, uuid=None, value=None, timestamp=None, type=0):
+            '''Adds a sighthing to an attribute.
+
+            It can be selected using its id, uuid, or value(s).
+
+            :param id: Attribute's id
+            :param uuid: Attribute's UUID
+            :param value: Attribute's value (can be a list)
+            :param timestamp: The date/time of the sighting, if None, it will be set to now()
+            :returns: Nothing
+            '''
+            req = dict(type=type)
+            if id is not None:
+                req.update(id=id)
+            elif uuid is not None:
+                req.update(uuid=uuid)
+            elif value is not None:
+                req.update(value=value)
+            else:
+                raise Exception('No attribute selector, use id, uuid or value')
+            if not timestamp:
+                timestamp = time.mktime(datetime.datetime.now().timetuple())
+            req.update(timestamp=int(timestamp))
+            body = json.dumps(req)
+            self.server.POST('/sightings/add/', body, xml=False)
+
 
     class Events(object):
         """
@@ -1141,4 +1194,6 @@ class MispShadowAttribute(MispAttribute):
             val = getattr(self, field)
             setattr(attr, field, val)
         return attr
+
+
 
