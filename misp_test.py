@@ -18,7 +18,7 @@
 #   limitations under the License.
 
 import unittest
-from misp import *
+from pythonmisp.misp import *
 
 class MispEventTest(unittest.TestCase):
     def test_good_xml(self):
