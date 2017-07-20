@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(
-    name='pythonmisp',
+    name='mispy',
     version='0.1',
     description='A pythonic MISP module',
     url='https://github.com/nbareil/python-misp',
@@ -10,6 +10,6 @@ setup(
     keywords='misp',
     install_requires=['requests', 'lxml'],
     license='Apachev2',
-    packages=['pythonmisp'],
+    packages=['mispy'],
     zip_safe=False
 )
