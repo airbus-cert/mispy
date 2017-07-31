@@ -804,13 +804,13 @@ class MispServer(object):
 
         def report_sighting(self, *args, **kwargs):
             '''Reports a sighting.
-            
+
             See :function:`add()` function for more details about the parameters.'''
             return self.add(type=0, *args, **kwargs)
 
         def report_false_positive(self, *args, **kwargs):
             '''Reports a false-positive finding.
-            
+
             See :function:`add()` function for more details about the parameters.'''
             return self.add(type=1, *args, **kwargs)
 
@@ -1194,6 +1194,3 @@ class MispShadowAttribute(MispAttribute):
             val = getattr(self, field)
             setattr(attr, field, val)
         return attr
-
-
-
