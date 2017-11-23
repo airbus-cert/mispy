@@ -20,6 +20,7 @@
 import unittest
 from mispy.misp import *
 
+
 class MispEventTest(unittest.TestCase):
     def test_good_xml(self):
         s = r"""<Event>
@@ -80,7 +81,6 @@ class MispEventTest(unittest.TestCase):
         self.assertEquals(m.publish_timestamp, 1445435155)
         for attr in m.attributes:
             self.assertEquals(attr.value, 'a283e768fa12ef33087f07b01f82d6dd')
-
 
     def test_good_xml_full_generation(self):
         s = r"""<Event>
@@ -203,6 +203,7 @@ class MispEventTest(unittest.TestCase):
         self.assertEquals(m.orgc, 'ACME Corporation')
         self.assertEquals(len(m.tags), 3)
 
+
 class MispTagTest(unittest.TestCase):
     def test_from_xml(self):
         s = r"""
@@ -214,6 +215,7 @@ class MispTagTest(unittest.TestCase):
         self.assertEquals(tag.colour, "#04cc18")
         self.assertEquals(tag.exportable, True)
         self.assertEquals(tag.org_id, 0)
+
 
 class MispAttrTest(unittest.TestCase):
     def test_fromtofrom_xml(self):
@@ -358,8 +360,8 @@ class MispServerTest(unittest.TestCase):
         e = m.events.get(TEST_EVT_ID)
         e.timestamp = datetime.datetime.now()
         a = MispAttribute()
-        a.value='foobar%d.com' % time.time()
-        a.comment='evil domain'
+        a.value = 'foobar%d.com' % time.time()
+        a.comment = 'evil domain'
         a.category = 'Network activity'
         a.type = 'domain'
         e.attributes.add(a)
@@ -368,14 +370,24 @@ class MispServerTest(unittest.TestCase):
     def disabled_test_modify_attr(self):
         m = MispServer()
         event = m.events.get(TEST_EVT_ID)
-        updateme=None
+        updateme = None
         for attr in event.attributes:
             if str(attr.value).startswith('tata'):
-                updateme=attr
+                updateme = attr
                 break
         self.assertIsNotNone(updateme)
-        updateme.comment='Hello; %s' % datetime.datetime.now()
+        updateme.comment = 'Hello; %s' % datetime.datetime.now()
         m.attributes.update(updateme)
+
+
+class MispTransportErrorTest(unittest.TestCase):
+    def python3_bug(self):
+        try:
+            raise MispTransportError('POST %s: returned status=%d', '/stuff', 404)
+        except MispTransportError as err:
+            self.assertEquals(err.path, '/stuff/')
+            self.assertEquals(err.response_code, 404)
+
 
 if __name__ == '__main__':
     unittest.main()
