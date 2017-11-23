@@ -381,12 +381,10 @@ class MispServerTest(unittest.TestCase):
 
 
 class MispTransportErrorTest(unittest.TestCase):
-    def python3_bug(self):
-        try:
-            raise MispTransportError('POST %s: returned status=%d', '/stuff', 404)
-        except MispTransportError as err:
-            self.assertEquals(err.path, '/stuff/')
-            self.assertEquals(err.response_code, 404)
+    def test_python3_bug(self):
+        err = MispTransportError('POST %s: returned status=%d', '/stuff', 404)
+        self.assertEquals(err.path, '/stuff')
+        self.assertEquals(err.status_code, 404)
 
 
 if __name__ == '__main__':
