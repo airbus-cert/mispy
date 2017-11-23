@@ -522,7 +522,7 @@ class MispEvent(MispBaseObject):
 
 class MispTransportError(Exception):
     def __init__(self, message, path, status_code):
-        super(MispTransportError, self).__init__(message)
+        super(MispTransportError, self).__init__(message, path, status_code)
         self.path = path
         self.status_code = status_code
 

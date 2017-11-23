@@ -385,6 +385,12 @@ class MispTransportErrorTest(unittest.TestCase):
         err = MispTransportError('POST %s: returned status=%d', '/stuff', 404)
         self.assertEquals(err.path, '/stuff')
         self.assertEquals(err.status_code, 404)
+        try:
+            self.assertEquals(err[2], 404)
+        except TypeError:
+            # That's ok it means you are testing with python 3
+            pass
+        self.assertEquals(err.args[2], 404)
 
 
 if __name__ == '__main__':
