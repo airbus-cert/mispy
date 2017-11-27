@@ -797,8 +797,12 @@ class MispServer(object):
                     raise err
             response = objectify.fromstring(raw)
             events = []
-            for evtobj in response.Event:
-                events.append(MispEvent.from_xml_object(evtobj))
+            try:
+                for evtobj in response.Event:
+                    events.append(MispEvent.from_xml_object(evtobj))
+            except AttributeError:
+                # No Event
+                pass
             return events
 
     class Sightings:
