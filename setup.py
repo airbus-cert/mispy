@@ -2,9 +2,10 @@ from setuptools import setup
 
 setup(
     name='mispy',
-    version='0.1',
+    version='0.2',
     description='A pythonic MISP module',
-    url='https://github.com/nbareil/python-misp',
+    url='https://github.com/nbareil/mispy',
+    download_url = 'https://github.com/nbareil/mispy/archive/0.2.tar.gz',
     author='Nicolas Bareil',
     author_email='nico@chdir.org',
     keywords='misp',

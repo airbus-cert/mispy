@@ -521,7 +521,10 @@ class MispEvent(MispBaseObject):
 
 
 class MispTransportError(Exception):
-    pass
+    def __init__(self, message, path, status_code):
+        super(MispTransportError, self).__init__(message, path, status_code)
+        self.path = path
+        self.status_code = status_code
 
 
 class MispServer(object):
@@ -786,7 +789,7 @@ class MispServer(object):
                         raw
                 )
             except MispTransportError as err:
-                if err[2] == 404:
+                if err.status_code == 404:
                     # 404 not found
                     return []
                 else:
@@ -794,8 +797,12 @@ class MispServer(object):
                     raise err
             response = objectify.fromstring(raw)
             events = []
-            for evtobj in response.Event:
-                events.append(MispEvent.from_xml_object(evtobj))
+            try:
+                for evtobj in response.Event:
+                    events.append(MispEvent.from_xml_object(evtobj))
+            except AttributeError:
+                # No Event
+                pass
             return events
 
     class Sightings:
