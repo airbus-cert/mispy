@@ -889,6 +889,17 @@ class MispServer(object):
             raw_evt = event.to_xml()
             self.server.POST('/events/%d' % event.id, raw_evt)
 
+        def publish(self, event, with_email=False):
+            if type(event) is MispEvent:
+                evtid = event.id
+            elif type(event) is int:
+                evtid = event
+            if with_email:
+                uri = '/events/alert/%d' % (evtid)
+            else:
+                uri = '/events/publish/%d' % (evtid)
+            return self.server.POST(uri, '')
+
         def put(self, event):
             """Creates an event on the MISP server.
 
