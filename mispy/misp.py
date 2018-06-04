@@ -52,7 +52,7 @@ DEFAULT_ORG = 'Default ACME Corp'
 DEFAULT_ORGC = DEFAULT_ORG
 try:
     MISP_API_KEY = open(os.path.join(os.environ['HOME'], '.misp_api_key')).read().strip()
-except IOError:
+except (IOError, KeyError):
     MISP_API_KEY = 'abcdefghighklmnopqrst'
 
 MISP_SSL_CHAIN = '/etc/ssl/certs/ca-certificates.crt'
