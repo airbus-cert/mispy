@@ -317,7 +317,7 @@ class MispAttrTest(unittest.TestCase):
             'windows-service-displayname', 'whois-registrant-email',
             'whois-registrant-phone', 'whois-registrant-name', 'whois-registrar',
             'whois-creation-date', 'targeted-threat-index', 'mailslot', 'pipe',
-            'ssl-cert-attributes', 'x509-fingerprint-sha1']
+            'ssl-cert-attributes', 'x509-fingerprint-sha1', 'ip-src|port']
         for t in valid_types:
             attr.type = t
 
