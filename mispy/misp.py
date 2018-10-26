@@ -995,7 +995,7 @@ attr_categories = ['Internal reference', 'Targeting data', 'Antivirus detection'
            'Attribution', 'External analysis', 'Other', 'Advisory PDF',
            'Advisory YAML', 'Financial fraud' ]
 
-attr_types = ['md5', 'sha1', 'sha256', 'filename', 'pdb',
+attr_types = ['md5', 'sha1', 'sha256', 'filename', 'pdb', 'ip-src|port',
             'filename|md5', 'filename|sha1', 'filename|sha256', 'ip-src',
             'ip-dst', 'hostname', 'domain', 'domain|ip', 'email-src', 'email-dst',
             'email-subject', 'email-attachment', 'url', 'http-method', 'user-agent',
