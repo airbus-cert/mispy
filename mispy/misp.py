@@ -296,9 +296,73 @@ class MispObject(MispBaseObject):
         self._description = None
         self._comment = None
         self._timestamp = None
-        self._attributes = MispObject.Attributes(self)
-        self._shadowattributes = []
+        self._meta_category = None
+        self.attributes = MispObject.Attributes(self)
+        self.shadowattributes = []
     
+    @property
+    def id(self):
+        return self._id
+    
+    @id.setter
+    def id(self, value):
+        if value is not None:
+            self._id = int(value)
+    
+    @property
+    def event_id(self):
+        return self._event_id
+    
+    @event_id.setter
+    def event_id(self, value):
+        if value is not None:
+            self._event_id = int(value)
+    
+    @property
+    def name(self):
+        return self._name
+    
+    @name.setter
+    def name(self, value):
+        if value is not None:
+            self._name = value
+
+    @property
+    def description(self):
+        return self._description
+    
+    @description.setter
+    def description(self, value):
+        if value is not None:
+            self._description = value
+    
+    @property
+    def comment(self):
+        return self._comment
+    
+    @comment.setter
+    def comment(self, value):
+        if value is not None:
+            self._comment = value
+
+    @property
+    def timestamp(self):
+        return self._timestamp
+    
+    @timestamp.setter
+    def timestamp(self, value):
+        if value is not None:
+            self._timestamp = int(value)
+
+    @property
+    def meta_category(self):
+        return self._meta_category
+    
+    @meta_category.setter
+    def meta_category(self, value):
+        if value is not None:
+            self._meta_category = value
+        
     @staticmethod
     def from_xml(s):
         """
@@ -316,7 +380,7 @@ class MispObject(MispBaseObject):
         return MispObject.from_xml_object(attr)
 
     @staticmethod
-    def from_xml_object(obj):
+    def from_xml_object(xml_obj):
         if xml_obj.tag.lower() != 'object':
             raise ValueError('Invalid Tag XML')
         obj = MispObject()
@@ -324,15 +388,17 @@ class MispObject(MispBaseObject):
             val = getattr(xml_obj, field)
             setattr(obj, field, val)
         
-        try:
-            attributes = []
-            for attr in xml_obj.Attribute:
+        attributes = []
+        for attr in xml_obj.Attribute:
+            try:
                 attr_obj = MispAttribute.from_xml_object(attr)
                 attributes.append(attr_obj)
-            
-            obj.attributes.set(attributes)
-        except:
-            pass
+            except:
+                # error creating attribute. It could mean the type is
+                # invalid, or something else
+                continue
+        
+        obj.attributes.set(attributes)
 
         if hasattr(xml_obj, 'ShadowAttribute'):
             for shadowattribute in xml_obj.ShadowAttribute:
@@ -416,7 +482,7 @@ class MispEvent(MispBaseObject):
         def set(self, val):
             self._tags = val
     
-    class Object(object):
+    class Objects(object):
         """
         Module that provides glue between :class:`MispEvent` and :class:`MispObject`
 
@@ -448,6 +514,7 @@ class MispEvent(MispBaseObject):
         self._published = None
         self.attributes = MispEvent.Attributes(self)
         self.tags = MispEvent.Tags(self)
+        self.objects = MispEvent.Objects(self)
         self.shadowattributes = []
 
     def __repr__(self):
@@ -597,6 +664,12 @@ class MispEvent(MispBaseObject):
         except:
             # No attribute, no worries
             pass
+        
+        objects = []
+        for cur_obj in obj.Object:
+            obj_obj = MispObject.from_xml_object(cur_obj)
+            objects.append(obj_obj)
+        event.objects.set(objects)
 
         try:
             tags = []
@@ -1216,7 +1289,7 @@ class MispAttribute(MispBaseObject):
     @type.setter
     def type(self, value):
         if value not in attr_types:
-            raise ValueError('Invalid type for an attribute')
+            raise ValueError('Invalid type for an attribute: ' + str(value))
         self._type = value
 
     @property
