@@ -387,6 +387,7 @@ class MispObject(MispBaseObject):
         for field in ['id', 'event_id', 'name', 'description', 'comment', 'timestamp']:
             val = getattr(xml_obj, field)
             setattr(obj, field, val)
+        obj.meta_category = getattr(xml_obj, "meta-category")
         
         attributes = []
         for attr in xml_obj.Attribute:
@@ -665,11 +666,12 @@ class MispEvent(MispBaseObject):
             # No attribute, no worries
             pass
         
-        objects = []
-        for cur_obj in obj.Object:
-            obj_obj = MispObject.from_xml_object(cur_obj)
-            objects.append(obj_obj)
-        event.objects.set(objects)
+        if hasattr(obj, "Object"):
+            objects = []
+            for cur_obj in obj.Object:
+                obj_obj = MispObject.from_xml_object(cur_obj)
+                objects.append(obj_obj)
+            event.objects.set(objects)
 
         try:
             tags = []
