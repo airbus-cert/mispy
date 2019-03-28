@@ -231,6 +231,116 @@ class MispTag(MispBaseObject):
         return attr
 
 
+class MispObject(MispBaseObject):
+    class Attributes(object):
+        """
+        The module that provides glue between :class:`MispEvent` and :class:`MispAttribute`
+
+        """
+        def __init__(self, obj):
+            self.object = obj
+            self._attributes = []
+
+        def add(self, attr):
+            """This function adds an attribute to the current object.
+
+            It takes care of updating Object's timestamp and filling the blanks in
+            the attribute object (timestamp, uuid, event id).
+
+            :param attr: a :class:`MispAttribute`'s instance to be added to the Object
+
+            :example:
+
+            >>> new_attr = MispAttribute()
+            >>> new_attr.value = 'foobar.com'
+            >>> new_attr.category = 'Network activity'
+            >>> new_attr.type = 'domain'
+            >>> server = MispServer()
+            >>> event = server.events.get(12)
+            >>> event.attributes.add(new_attr)
+            >>> server.events.update(event)
+
+            """
+            if type(attr) is not MispAttribute:
+                raise ValueError("object.attributes.add() only takes MispAttribute instance")
+            self.event.timestamp = datetime.datetime.now()
+            if not attr.uuid:
+                attr.uuid = uuid.uuid4()
+            attr.event_id = self.object.event_id
+            attr.timestamp = self.object.timestamp+1
+            self._attributes.append(attr)
+
+        def remove(self, attribute):
+            """This function removes an attribute from the current object.
+
+            :param attr: `MispAttribute` to be removed to the Object
+            .. todo::
+               Implement it.
+            """
+            raise NotImplementedError('Cannot remove attribute yet')
+
+        def __iter__(self):
+            return self._attributes.__iter__()
+
+        def __len__(self):
+            return len(self._attributes)
+
+        def set(self, val):
+            self._attributes = val
+
+    def __init__(self):
+        super(MispObject, self).__init__()
+        self._id = None
+        self._event_id = None
+        self._name = None
+        self._description = None
+        self._comment = None
+        self._timestamp = None
+        self._attributes = MispObject.Attributes(self)
+        self._shadowattributes = []
+    
+    @staticmethod
+    def from_xml(s):
+        """
+        Static method converting a serialized XML string into a :class:`MispObject` object.
+
+        :example:
+
+        >>> s = 'updateMe'
+        >>> a = MispObject.from_xml(s)
+        >>> type(a)
+        <class 'misp.MispObject'>
+
+        """
+        attr = objectify.fromstring(s)
+        return MispObject.from_xml_object(attr)
+
+    @staticmethod
+    def from_xml_object(obj):
+        if xml_obj.tag.lower() != 'object':
+            raise ValueError('Invalid Tag XML')
+        obj = MispObject()
+        for field in ['id', 'event_id', 'name', 'description', 'comment', 'timestamp']:
+            val = getattr(xml_obj, field)
+            setattr(obj, field, val)
+        
+        try:
+            attributes = []
+            for attr in xml_obj.Attribute:
+                attr_obj = MispAttribute.from_xml_object(attr)
+                attributes.append(attr_obj)
+            
+            obj.attributes.set(attributes)
+        except:
+            pass
+
+        if hasattr(xml_obj, 'ShadowAttribute'):
+            for shadowattribute in xml_obj.ShadowAttribute:
+                shadowattribute_obj = MispShadowAttribute.from_xml_object(shadowattribute)
+                obj.shadowattributes.append(shadowattribute_obj)
+
+        return obj
+
 class MispEvent(MispBaseObject):
     class Attributes(object):
         """
@@ -305,6 +415,24 @@ class MispEvent(MispBaseObject):
 
         def set(self, val):
             self._tags = val
+    
+    class Object(object):
+        """
+        Module that provides glue between :class:`MispEvent` and :class:`MispObject`
+
+        """
+        def __init__(self, event):
+            self.event = event
+            self._objects = []
+        
+        def __iter__(self):
+            return self._objects.__iter__()
+        
+        def __len__(self):
+            return len(self._objects)
+        
+        def set(self, val):
+            self._objects = val
 
     def __init__(self):
         super(MispEvent, self).__init__()
