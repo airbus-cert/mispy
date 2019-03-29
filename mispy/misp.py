@@ -720,7 +720,7 @@ class MispEvent(MispBaseObject):
             event.append(attr.to_xml_object())
         
         for obj in self.objects:
-            event.appen(obj.to_xml_object())
+            event.append(obj.to_xml_object())
 
         org = objectify.Element('Org')
         org.name = self.org
