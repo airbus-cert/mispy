@@ -234,7 +234,7 @@ class MispTag(MispBaseObject):
 class MispObject(MispBaseObject):
     class Attributes(object):
         """
-        The module that provides glue between :class:`MispEvent` and :class:`MispAttribute`
+        The module that provides glue between :class:`MispObject` and :class:`MispAttribute`
 
         """
         def __init__(self, obj):
@@ -248,17 +248,6 @@ class MispObject(MispBaseObject):
             the attribute object (timestamp, uuid, event id).
 
             :param attr: a :class:`MispAttribute`'s instance to be added to the Object
-
-            :example:
-
-            >>> new_attr = MispAttribute()
-            >>> new_attr.value = 'foobar.com'
-            >>> new_attr.category = 'Network activity'
-            >>> new_attr.type = 'domain'
-            >>> server = MispServer()
-            >>> event = server.events.get(12)
-            >>> event.attributes.add(new_attr)
-            >>> server.events.update(event)
 
             """
             if type(attr) is not MispAttribute:
@@ -407,6 +396,24 @@ class MispObject(MispBaseObject):
                 obj.shadowattributes.append(shadowattribute_obj)
 
         return obj
+    
+    def to_xml_object(self):
+        obj = objectify.Element("Object")
+        for field in ['id', 'event_id', 'name', 'description', 'comment', 'timestamp']:
+            value = getattr(self, field)
+            setattr(obj, field, value)
+        setattr(obj, "meta-category", self.meta_category)
+
+        for attr in self.attributes:
+            attr_xml = attr.to_xml_object()
+            obj.append(attr_xml)
+        
+        for shadow in self.shadowattributes:
+            shadow_xml = shadow.to_xml_object()
+            obj.append(shadow_xml)
+        
+        return obj
+
 
 class MispEvent(MispBaseObject):
     class Attributes(object):
@@ -711,6 +718,9 @@ class MispEvent(MispBaseObject):
             pass
         for attr in self.attributes:
             event.append(attr.to_xml_object())
+        
+        for obj in self.objects:
+            event.appen(obj.to_xml_object())
 
         org = objectify.Element('Org')
         org.name = self.org
