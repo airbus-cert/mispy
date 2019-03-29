@@ -393,5 +393,73 @@ class MispTransportErrorTest(unittest.TestCase):
         self.assertEquals(err.args[2], 404)
 
 
+class MispObjectTest(unittest.TestCase):
+    def test_from_xml(self):
+        xml = """<Object>
+    <id>1234</id>
+    <name>file</name>
+    <meta-category>file</meta-category>
+    <description>File object describing a file with meta-information</description>
+    <template_uuid>688c46fb-5edb-40a3-8273-1af7923e2215</template_uuid>
+    <template_version>13</template_version>
+    <event_id>9876</event_id>
+    <uuid>5c9c8b6f-bb24-4e6c-ab83-18c60a3a5cf9</uuid>
+    <timestamp>1553763183</timestamp>
+    <distribution>1</distribution>
+    <sharing_group_id>0</sharing_group_id>
+    <comment>Hello</comment>
+    <deleted>0</deleted>
+    <ObjectReference/>
+    <Attribute>
+      <id>2640682</id>
+      <type>malware-sample</type>
+      <category>Payload installation</category>
+      <to_ids>1</to_ids>
+      <uuid>5c9c8b70-4814-493b-a891-18c60a3a5cf9</uuid>
+      <event_id>14584</event_id>
+      <distribution>1</distribution>
+      <timestamp>1553763184</timestamp>
+      <comment/>
+      <sharing_group_id>0</sharing_group_id>
+      <deleted>0</deleted>
+      <disable_correlation>0</disable_correlation>
+      <object_id>292731</object_id>
+      <object_relation>malware-sample</object_relation>
+      <value>/tmp/a.exe|d41d8cd98f00b204e9800998ecf8427e</value>
+      <Galaxy/>
+      <data>abcdef</data>
+      <ShadowAttribute/>
+    </Attribute>
+    <Attribute>
+      <id>2640683</id>
+      <type>filename</type>
+      <category>Payload installation</category>
+      <to_ids>0</to_ids>
+      <uuid>5c9c8b73-0418-474f-a2ee-18c60a3a5cf9</uuid>
+      <event_id>14584</event_id>
+      <distribution>1</distribution>
+      <timestamp>1553763187</timestamp>
+      <comment/>
+      <sharing_group_id>0</sharing_group_id>
+      <deleted>0</deleted>
+      <disable_correlation>0</disable_correlation>
+      <object_id>292731</object_id>
+      <object_relation>filename</object_relation>
+      <value>/tmp/a.exe</value>
+      <Galaxy/>
+      <ShadowAttribute/>
+    </Attribute>
+  </Object>"""
+    
+        obj = MispObject.from_xml(xml)
+        self.assertEquals(obj.id, 1234)
+        self.assertEquals(obj.name, "file")
+        self.assertEquals(obj.comment, "Hello")
+        self.assertEquals(obj.event_id, 9876)
+        self.assertEquals(obj.timestamp, 1553763183)
+        self.assertEquals(obj.meta_category, "file")
+        self.assertEquals(len(obj.attributes), 2)
+
+
 if __name__ == '__main__':
     unittest.main()
