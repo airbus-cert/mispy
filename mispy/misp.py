@@ -373,11 +373,12 @@ class MispObject(MispBaseObject):
         if xml_obj.tag.lower() != 'object':
             raise ValueError('Invalid Tag XML')
         obj = MispObject()
+        
         for field in ['id', 'event_id', 'name', 'description', 'comment', 'timestamp']:
             val = getattr(xml_obj, field)
             setattr(obj, field, val)
         obj.meta_category = getattr(xml_obj, "meta-category")
-        
+
         attributes = []
         for attr in xml_obj.Attribute:
             try:
@@ -673,19 +674,22 @@ class MispEvent(MispBaseObject):
             # No attribute, no worries
             pass
         
-        if hasattr(obj, "Object"):
+        try:
             objects = []
             for cur_obj in obj.Object:
                 obj_obj = MispObject.from_xml_object(cur_obj)
                 objects.append(obj_obj)
             event.objects.set(objects)
+        except AttributeError:
+            # No objects
+            pass
 
         try:
             tags = []
             for tag in obj.Tag:
                 tag_obj = MispTag.from_xml_object(tag)
                 tags.append(tag_obj)
-                event.tags.set(tags)
+            event.tags.set(tags)
         except AttributeError:
             # No tags
             pass
