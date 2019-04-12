@@ -593,6 +593,22 @@ class MispServer(object):
             raise MispTransportError('GET %s: returned status=%d', path, resp.status_code)
         return resp.content
 
+    def tag(self, attr, tag):
+        """
+        Add a tag to an attribute.
+
+        :param attr: Attribute to be modified
+        :param tag: tag to be added
+        :returns: success status
+
+        """
+        data = {
+            'uuid': attr.uuid,
+            'tag': tag
+        }
+        raw = self.POST('/tags/attachTagToObject/', data, xml=False)
+        return 'successfully' in raw
+
     def download(self, attr):
         """
         Download an attribute attachment
@@ -1028,6 +1044,7 @@ class MispAttribute(MispBaseObject):
         self._ShadowAttribute = None
         self._id = None
         self._event_id = None
+        self.uuid = str(uuid.uuid1())
 
     @property
     def id(self):
