@@ -52,7 +52,7 @@ DEFAULT_ORG = 'Default ACME Corp'
 DEFAULT_ORGC = DEFAULT_ORG
 try:
     MISP_API_KEY = open(os.path.join(os.environ['HOME'], '.misp_api_key')).read().strip()
-except IOError:
+except (IOError, KeyError):
     MISP_API_KEY = 'abcdefghighklmnopqrst'
 
 MISP_SSL_CHAIN = '/etc/ssl/certs/ca-certificates.crt'
@@ -231,6 +231,190 @@ class MispTag(MispBaseObject):
         return attr
 
 
+class MispObject(MispBaseObject):
+    class Attributes(object):
+        """
+        The module that provides glue between :class:`MispObject` and :class:`MispAttribute`
+
+        """
+        def __init__(self, obj):
+            self.object = obj
+            self._attributes = []
+
+        def add(self, attr):
+            """This function adds an attribute to the current object.
+
+            It takes care of updating Object's timestamp and filling the blanks in
+            the attribute object (timestamp, uuid, event id).
+
+            :param attr: a :class:`MispAttribute`'s instance to be added to the Object
+
+            """
+            if type(attr) is not MispAttribute:
+                raise ValueError("object.attributes.add() only takes MispAttribute instance")
+            self.event.timestamp = datetime.datetime.now()
+            if not attr.uuid:
+                attr.uuid = uuid.uuid4()
+            attr.event_id = self.object.event_id
+            attr.timestamp = self.object.timestamp+1
+            self._attributes.append(attr)
+
+        def remove(self, attribute):
+            """This function removes an attribute from the current object.
+
+            :param attr: `MispAttribute` to be removed to the Object
+            .. todo::
+               Implement it.
+            """
+            raise NotImplementedError('Cannot remove attribute yet')
+
+        def __iter__(self):
+            return self._attributes.__iter__()
+
+        def __len__(self):
+            return len(self._attributes)
+
+        def set(self, val):
+            self._attributes = val
+
+    def __init__(self):
+        super(MispObject, self).__init__()
+        self._id = None
+        self._event_id = None
+        self._name = None
+        self._description = None
+        self._comment = None
+        self._timestamp = None
+        self._meta_category = None
+        self.attributes = MispObject.Attributes(self)
+        self.shadowattributes = []
+    
+    @property
+    def id(self):
+        return self._id
+    
+    @id.setter
+    def id(self, value):
+        if value is not None:
+            self._id = int(value)
+    
+    @property
+    def event_id(self):
+        return self._event_id
+    
+    @event_id.setter
+    def event_id(self, value):
+        if value is not None:
+            self._event_id = int(value)
+    
+    @property
+    def name(self):
+        return self._name
+    
+    @name.setter
+    def name(self, value):
+        if value is not None:
+            self._name = value
+
+    @property
+    def description(self):
+        return self._description
+    
+    @description.setter
+    def description(self, value):
+        if value is not None:
+            self._description = value
+    
+    @property
+    def comment(self):
+        return self._comment
+    
+    @comment.setter
+    def comment(self, value):
+        if value is not None:
+            self._comment = value
+
+    @property
+    def timestamp(self):
+        return self._timestamp
+    
+    @timestamp.setter
+    def timestamp(self, value):
+        if value is not None:
+            self._timestamp = int(value)
+
+    @property
+    def meta_category(self):
+        return self._meta_category
+    
+    @meta_category.setter
+    def meta_category(self, value):
+        if value is not None:
+            self._meta_category = value
+        
+    @staticmethod
+    def from_xml(s):
+        """
+        Static method converting a serialized XML string into a :class:`MispObject` object.
+
+        :example:
+
+        >>> s = 'updateMe'
+        >>> a = MispObject.from_xml(s)
+        >>> type(a)
+        <class 'misp.MispObject'>
+
+        """
+        attr = objectify.fromstring(s)
+        return MispObject.from_xml_object(attr)
+
+    @staticmethod
+    def from_xml_object(xml_obj):
+        if xml_obj.tag.lower() != 'object':
+            raise ValueError('Invalid Tag XML')
+        obj = MispObject()
+        for field in ['id', 'event_id', 'name', 'description', 'comment', 'timestamp']:
+            val = getattr(xml_obj, field)
+            setattr(obj, field, val)
+        obj.meta_category = getattr(xml_obj, "meta-category")
+        
+        attributes = []
+        for attr in xml_obj.Attribute:
+            try:
+                attr_obj = MispAttribute.from_xml_object(attr)
+                attributes.append(attr_obj)
+            except:
+                # error creating attribute. It could mean the type is
+                # invalid, or something else
+                continue
+        
+        obj.attributes.set(attributes)
+
+        if hasattr(xml_obj, 'ShadowAttribute'):
+            for shadowattribute in xml_obj.ShadowAttribute:
+                shadowattribute_obj = MispShadowAttribute.from_xml_object(shadowattribute)
+                obj.shadowattributes.append(shadowattribute_obj)
+
+        return obj
+    
+    def to_xml_object(self):
+        obj = objectify.Element("Object")
+        for field in ['id', 'event_id', 'name', 'description', 'comment', 'timestamp']:
+            value = getattr(self, field)
+            setattr(obj, field, value)
+        setattr(obj, "meta-category", self.meta_category)
+
+        for attr in self.attributes:
+            attr_xml = attr.to_xml_object()
+            obj.append(attr_xml)
+        
+        for shadow in self.shadowattributes:
+            shadow_xml = shadow.to_xml_object()
+            obj.append(shadow_xml)
+        
+        return obj
+
+
 class MispEvent(MispBaseObject):
     class Attributes(object):
         """
@@ -305,6 +489,24 @@ class MispEvent(MispBaseObject):
 
         def set(self, val):
             self._tags = val
+    
+    class Objects(object):
+        """
+        Module that provides glue between :class:`MispEvent` and :class:`MispObject`
+
+        """
+        def __init__(self, event):
+            self.event = event
+            self._objects = []
+        
+        def __iter__(self):
+            return self._objects.__iter__()
+        
+        def __len__(self):
+            return len(self._objects)
+        
+        def set(self, val):
+            self._objects = val
 
     def __init__(self):
         super(MispEvent, self).__init__()
@@ -320,6 +522,7 @@ class MispEvent(MispBaseObject):
         self._published = None
         self.attributes = MispEvent.Attributes(self)
         self.tags = MispEvent.Tags(self)
+        self.objects = MispEvent.Objects(self)
         self.shadowattributes = []
 
     def __repr__(self):
@@ -469,6 +672,13 @@ class MispEvent(MispBaseObject):
         except:
             # No attribute, no worries
             pass
+        
+        if hasattr(obj, "Object"):
+            objects = []
+            for cur_obj in obj.Object:
+                obj_obj = MispObject.from_xml_object(cur_obj)
+                objects.append(obj_obj)
+            event.objects.set(objects)
 
         try:
             tags = []
@@ -508,6 +718,9 @@ class MispEvent(MispBaseObject):
             pass
         for attr in self.attributes:
             event.append(attr.to_xml_object())
+        
+        for obj in self.objects:
+            event.append(obj.to_xml_object())
 
         org = objectify.Element('Org')
         org.name = self.org
@@ -1011,7 +1224,7 @@ attr_categories = ['Internal reference', 'Targeting data', 'Antivirus detection'
            'Attribution', 'External analysis', 'Other', 'Advisory PDF',
            'Advisory YAML', 'Financial fraud' ]
 
-attr_types = ['md5', 'sha1', 'sha256', 'filename', 'pdb',
+attr_types = ['md5', 'sha1', 'sha256', 'filename', 'pdb', 'ip-src|port',
             'filename|md5', 'filename|sha1', 'filename|sha256', 'ip-src',
             'ip-dst', 'hostname', 'domain', 'domain|ip', 'email-src', 'email-dst',
             'email-subject', 'email-attachment', 'url', 'http-method', 'user-agent',
@@ -1105,7 +1318,7 @@ class MispAttribute(MispBaseObject):
     @type.setter
     def type(self, value):
         if value not in attr_types:
-            raise ValueError('Invalid type for an attribute')
+            raise ValueError('Invalid type for an attribute: ' + str(value))
         self._type = value
 
     @property
