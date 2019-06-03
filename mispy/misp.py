@@ -288,29 +288,29 @@ class MispObject(MispBaseObject):
         self._meta_category = None
         self.attributes = MispObject.Attributes(self)
         self.shadowattributes = []
-    
+
     @property
     def id(self):
         return self._id
-    
+
     @id.setter
     def id(self, value):
         if value is not None:
             self._id = int(value)
-    
+
     @property
     def event_id(self):
         return self._event_id
-    
+
     @event_id.setter
     def event_id(self, value):
         if value is not None:
             self._event_id = int(value)
-    
+
     @property
     def name(self):
         return self._name
-    
+
     @name.setter
     def name(self, value):
         if value is not None:
@@ -319,16 +319,16 @@ class MispObject(MispBaseObject):
     @property
     def description(self):
         return self._description
-    
+
     @description.setter
     def description(self, value):
         if value is not None:
             self._description = value
-    
+
     @property
     def comment(self):
         return self._comment
-    
+
     @comment.setter
     def comment(self, value):
         if value is not None:
@@ -337,7 +337,7 @@ class MispObject(MispBaseObject):
     @property
     def timestamp(self):
         return self._timestamp
-    
+
     @timestamp.setter
     def timestamp(self, value):
         if value is not None:
@@ -346,12 +346,12 @@ class MispObject(MispBaseObject):
     @property
     def meta_category(self):
         return self._meta_category
-    
+
     @meta_category.setter
     def meta_category(self, value):
         if value is not None:
             self._meta_category = value
-        
+
     @staticmethod
     def from_xml(s):
         """
@@ -373,7 +373,7 @@ class MispObject(MispBaseObject):
         if xml_obj.tag.lower() != 'object':
             raise ValueError('Invalid Tag XML')
         obj = MispObject()
-        
+
         for field in ['id', 'event_id', 'name', 'description', 'comment', 'timestamp']:
             val = getattr(xml_obj, field)
             setattr(obj, field, val)
@@ -388,7 +388,7 @@ class MispObject(MispBaseObject):
                 # error creating attribute. It could mean the type is
                 # invalid, or something else
                 continue
-        
+
         obj.attributes.set(attributes)
 
         if hasattr(xml_obj, 'ShadowAttribute'):
@@ -397,7 +397,7 @@ class MispObject(MispBaseObject):
                 obj.shadowattributes.append(shadowattribute_obj)
 
         return obj
-    
+
     def to_xml_object(self):
         obj = objectify.Element("Object")
         for field in ['id', 'event_id', 'name', 'description', 'comment', 'timestamp']:
@@ -408,11 +408,11 @@ class MispObject(MispBaseObject):
         for attr in self.attributes:
             attr_xml = attr.to_xml_object()
             obj.append(attr_xml)
-        
+
         for shadow in self.shadowattributes:
             shadow_xml = shadow.to_xml_object()
             obj.append(shadow_xml)
-        
+
         return obj
 
 
@@ -490,7 +490,7 @@ class MispEvent(MispBaseObject):
 
         def set(self, val):
             self._tags = val
-    
+
     class Objects(object):
         """
         Module that provides glue between :class:`MispEvent` and :class:`MispObject`
@@ -499,13 +499,13 @@ class MispEvent(MispBaseObject):
         def __init__(self, event):
             self.event = event
             self._objects = []
-        
+
         def __iter__(self):
             return self._objects.__iter__()
-        
+
         def __len__(self):
             return len(self._objects)
-        
+
         def set(self, val):
             self._objects = val
 
@@ -673,7 +673,7 @@ class MispEvent(MispBaseObject):
         except:
             # No attribute, no worries
             pass
-        
+
         try:
             objects = []
             for cur_obj in obj.Object:
@@ -722,7 +722,7 @@ class MispEvent(MispBaseObject):
             pass
         for attr in self.attributes:
             event.append(attr.to_xml_object())
-        
+
         for obj in self.objects:
             event.append(obj.to_xml_object())
 
@@ -1343,9 +1343,12 @@ class MispAttribute(MispBaseObject):
         if obj.tag.lower() != 'attribute':
             raise ValueError('Invalid Attribute XML')
         attr = MispAttribute()
-        for field in ['uuid', 'distribution', 'type', 'category',
-                      'timestamp', 'to_ids', 'comment', 'value',
-                      'event_id', 'id']:
+        # String fields
+        for field in ['uuid', 'type', 'category', 'comment', 'value']:
+            val = getattr(obj, field)
+            setattr(attr, field, str(val))
+        # Integer fields
+        for field in ['distribution', 'to_ids', 'event_id', 'id', 'timestamp']:
             val = getattr(obj, field)
             setattr(attr, field, val)
         return attr
