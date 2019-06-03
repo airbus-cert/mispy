@@ -288,29 +288,29 @@ class MispObject(MispBaseObject):
         self._meta_category = None
         self.attributes = MispObject.Attributes(self)
         self.shadowattributes = []
-    
+
     @property
     def id(self):
         return self._id
-    
+
     @id.setter
     def id(self, value):
         if value is not None:
             self._id = int(value)
-    
+
     @property
     def event_id(self):
         return self._event_id
-    
+
     @event_id.setter
     def event_id(self, value):
         if value is not None:
             self._event_id = int(value)
-    
+
     @property
     def name(self):
         return self._name
-    
+
     @name.setter
     def name(self, value):
         if value is not None:
@@ -319,16 +319,16 @@ class MispObject(MispBaseObject):
     @property
     def description(self):
         return self._description
-    
+
     @description.setter
     def description(self, value):
         if value is not None:
             self._description = value
-    
+
     @property
     def comment(self):
         return self._comment
-    
+
     @comment.setter
     def comment(self, value):
         if value is not None:
@@ -337,7 +337,7 @@ class MispObject(MispBaseObject):
     @property
     def timestamp(self):
         return self._timestamp
-    
+
     @timestamp.setter
     def timestamp(self, value):
         if value is not None:
@@ -346,12 +346,12 @@ class MispObject(MispBaseObject):
     @property
     def meta_category(self):
         return self._meta_category
-    
+
     @meta_category.setter
     def meta_category(self, value):
         if value is not None:
             self._meta_category = value
-        
+
     @staticmethod
     def from_xml(s):
         """
@@ -373,7 +373,7 @@ class MispObject(MispBaseObject):
         if xml_obj.tag.lower() != 'object':
             raise ValueError('Invalid Tag XML')
         obj = MispObject()
-        
+
         for field in ['id', 'event_id', 'name', 'description', 'comment', 'timestamp']:
             val = getattr(xml_obj, field)
             setattr(obj, field, val)
@@ -388,7 +388,7 @@ class MispObject(MispBaseObject):
                 # error creating attribute. It could mean the type is
                 # invalid, or something else
                 continue
-        
+
         obj.attributes.set(attributes)
 
         if hasattr(xml_obj, 'ShadowAttribute'):
@@ -397,7 +397,7 @@ class MispObject(MispBaseObject):
                 obj.shadowattributes.append(shadowattribute_obj)
 
         return obj
-    
+
     def to_xml_object(self):
         obj = objectify.Element("Object")
         for field in ['id', 'event_id', 'name', 'description', 'comment', 'timestamp']:
@@ -408,11 +408,11 @@ class MispObject(MispBaseObject):
         for attr in self.attributes:
             attr_xml = attr.to_xml_object()
             obj.append(attr_xml)
-        
+
         for shadow in self.shadowattributes:
             shadow_xml = shadow.to_xml_object()
             obj.append(shadow_xml)
-        
+
         return obj
 
 
@@ -490,7 +490,7 @@ class MispEvent(MispBaseObject):
 
         def set(self, val):
             self._tags = val
-    
+
     class Objects(object):
         """
         Module that provides glue between :class:`MispEvent` and :class:`MispObject`
@@ -499,13 +499,13 @@ class MispEvent(MispBaseObject):
         def __init__(self, event):
             self.event = event
             self._objects = []
-        
+
         def __iter__(self):
             return self._objects.__iter__()
-        
+
         def __len__(self):
             return len(self._objects)
-        
+
         def set(self, val):
             self._objects = val
 
@@ -663,17 +663,13 @@ class MispEvent(MispBaseObject):
             val = getattr(obj, field)
             setattr(event, field, val)
 
-        #FIXME: this except catch a lot of unknown bugs
-        try:
-            attributes = []
+        attributes = []
+        if hasattr(obj, 'Attribute'):
             for attr in obj.Attribute:
                 attr_obj = MispAttribute.from_xml_object(attr)
                 attributes.append(attr_obj)
-            event.attributes.set(attributes)
-        except:
-            # No attribute, no worries
-            pass
-        
+        event.attributes.set(attributes)
+
         try:
             objects = []
             for cur_obj in obj.Object:
@@ -722,7 +718,7 @@ class MispEvent(MispBaseObject):
             pass
         for attr in self.attributes:
             event.append(attr.to_xml_object())
-        
+
         for obj in self.objects:
             event.append(obj.to_xml_object())
 
@@ -1210,29 +1206,49 @@ attr_categories = ['Internal reference', 'Targeting data', 'Antivirus detection'
            'Payload delivery', 'Payload installation', 'Artifacts dropped',
            'Persistence mechanism', 'Network activity', 'Payload type',
            'Attribution', 'External analysis', 'Other', 'Advisory PDF',
-           'Advisory YAML', 'Financial fraud' ]
+           'Advisory YAML', 'Financial fraud', 'Person', 'Social network',
+           'Support Tool']
 
-attr_types = ['md5', 'sha1', 'sha256', 'filename', 'pdb', 'ip-src|port',
-            'filename|md5', 'filename|sha1', 'filename|sha256', 'ip-src',
-            'ip-dst', 'hostname', 'domain', 'domain|ip', 'email-src', 'email-dst',
-            'email-subject', 'email-attachment', 'url', 'http-method', 'user-agent',
-            'regkey', 'regkey|value', 'AS', 'snort', 'pattern-in-file',
-            'pattern-in-traffic', 'pattern-in-memory', 'yara', 'vulnerability',
-            'attachment', 'malware-sample', 'link', 'comment', 'text', 'other',
-            'named pipe', 'mutex', 'target-user', 'target-email', 'target-machine',
-            'target-org', 'target-location', 'target-external', 'btc', 'iban',
-            'bic', 'bank-account-nr', 'aba-rtn', 'bin', 'cc-number', 'prtn',
-            'threat-actor', 'campaign-name', 'campaign-id', 'malware-type',
-            'uri', 'authentihash', 'ssdeep', 'imphash', 'pehash', 'sha224',
-            'sha384', 'sha512', 'sha512/224', 'sha512/256', 'tlsh',
-            'filename|authentihash', 'filename|ssdeep', 'filename|imphash',
-            'filename|pehash', 'filename|sha224', 'filename|sha384',
-            'filename|sha512', 'filename|sha512/224', 'filename|sha512/256',
-            'filename|tlsh', 'windows-scheduled-task', 'windows-service-name',
-            'windows-service-displayname', 'whois-registrant-email',
-            'whois-registrant-phone', 'whois-registrant-name', 'whois-registrar',
-            'whois-creation-date', 'targeted-threat-index', 'mailslot', 'pipe',
-            'ssl-cert-attributes', 'x509-fingerprint-sha1', 'ip-dst|port']
+attr_types = ['AS', 'aba-rtn', 'anonymised', 'attachment', 'authentihash',
+        'bank-account-nr', 'bic', 'bin', 'boolean', 'bro', 'btc',
+        'campaign-id', 'campaign-name', 'cc-number', 'cdhash', 'comment',
+        'cookie', 'cortex', 'counter', 'country-of-residence', 'cpe',
+        'date-of-birth', 'datetime', 'dns-soa-email', 'domain', 'domain|ip',
+        'email-attachment', 'email-body', 'email-dst', 'email-dst-display-name',
+        'email-header', 'email-message-id', 'email-mime-boundary',
+        'email-reply-to', 'email-src', 'email-src-display-name', 'email-subject',
+        'email-thread-index', 'email-x-mailer', 'filename', 'filename|authentihash',
+        'filename|impfuzzy', 'filename|imphash', 'filename|md5', 'filename|pehash',
+        'filename|sha1', 'filename|sha224', 'filename|sha256', 'filename|sha384',
+        'filename|sha512', 'filename|sha512/224', 'filename|sha512/256',
+        'filename|ssdeep', 'filename|tlsh', 'first-name', 'float',
+        'frequent-flyer-number', 'gender', 'gene', 'github-organisation',
+        'github-repository', 'github-username', 'hassh-md5', 'hasshserver-md5',
+        'hex', 'hostname', 'hostname|port', 'http-method', 'iban',
+        'identity-card-number', 'impfuzzy', 'imphash', 'ip-dst', 'ip-dst|port',
+        'ip-src', 'ip-src|port', 'issue-date-of-the-visa', 'ja3-fingerprint-md5',
+        'jabber-id', 'last-name', 'link', 'mac-address', 'mac-eui-64',
+        'malware-sample', 'malware-type', 'md5', 'middle-name', 'mime-type',
+        'mobile-application-id', 'mutex', 'named', 'nationality', 'other',
+        'passenger-name-record-locator-number', 'passport-country',
+        'passport-expiration', 'passport-number', 'pattern-in-file',
+        'pattern-in-memory', 'pattern-in-traffic', 'payment-details', 'pdb',
+        'pehash', 'phone-number', 'place-of-birth', 'place-port-of-clearance',
+        'place-port-of-onward-foreign-destination',
+        'place-port-of-original-embarkation', 'port', 'primary-residence',
+        'prtn', 'redress-number', 'regkey', 'regkey|value', 'sha1', 'sha224',
+        'sha256', 'sha384', 'sha512', 'sha512/224', 'sha512/256', 'sigma',
+        'size-in-bytes', 'snort', 'special-service-request', 'ssdeep',
+        'stix2-pattern', 'target-email', 'target-external', 'target-location',
+        'target-machine', 'target-org', 'target-user', 'text', 'threat-actor',
+        'tlsh', 'travel-details', 'twitter-id', 'uri', 'url', 'user-agent',
+        'visa-number', 'vulnerability', 'whois-creation-date',
+        'whois-registrant-email', 'whois-registrant-name', 'whois-registrant-org',
+        'whois-registrant-phone', 'whois-registrar', 'windows-scheduled-task',
+        'windows-service-displayname', 'windows-service-name',
+        'x509-fingerprint-md5', 'x509-fingerprint-sha1', 'x509-fingerprint-sha256',
+        'xmr', 'yara', 'zeek']
+
 
 class MispAttribute(MispBaseObject):
     def __init__(self):
