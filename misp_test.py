@@ -66,21 +66,21 @@ class MispEventTest(unittest.TestCase):
 </Event>
 """
         m = MispEvent.from_xml(s)
-        self.assertEquals(m.uuid, '56278fd8-f2c0-4907-bcca-594e0a3ac101')
-        self.assertEquals(m.id, 42)
-        self.assertEquals(m.org, 'ACME and bro.')
-        self.assertEquals(m.date, '2015-10-20')
-        self.assertEquals(m.threat_level_id, 3)
-        self.assertEquals(m.info, 'AGNOSTIC PANDA')
-        self.assertEquals(m.published, 1)
-        self.assertEquals(m.analysis, 2)
-        self.assertEquals(m.timestamp, 1445434988)
-        self.assertEquals(m.distribution, 1)
-        self.assertEquals(m.orgc, 'ACME Corporation')
-        self.assertEquals(m.locked, 0)
-        self.assertEquals(m.publish_timestamp, 1445435155)
+        self.assertEqual(m.uuid, '56278fd8-f2c0-4907-bcca-594e0a3ac101')
+        self.assertEqual(m.id, 42)
+        self.assertEqual(m.org, 'ACME and bro.')
+        self.assertEqual(m.date, '2015-10-20')
+        self.assertEqual(m.threat_level_id, 3)
+        self.assertEqual(m.info, 'AGNOSTIC PANDA')
+        self.assertEqual(m.published, 1)
+        self.assertEqual(m.analysis, 2)
+        self.assertEqual(m.timestamp, 1445434988)
+        self.assertEqual(m.distribution, 1)
+        self.assertEqual(m.orgc, 'ACME Corporation')
+        self.assertEqual(m.locked, 0)
+        self.assertEqual(m.publish_timestamp, 1445435155)
         for attr in m.attributes:
-            self.assertEquals(attr.value, 'a283e768fa12ef33087f07b01f82d6dd')
+            self.assertEqual(attr.value, 'a283e768fa12ef33087f07b01f82d6dd')
 
     def test_good_xml_full_generation(self):
         s = r"""<Event>
@@ -111,19 +111,19 @@ class MispEventTest(unittest.TestCase):
         m = MispEvent.from_xml(s)
         new = m.to_xml()
         m = MispEvent.from_xml(new)
-        self.assertEquals(m.uuid, '56278fd8-f2c0-4907-bcca-594e0a3ac101')
-        self.assertEquals(m.id, 42)
-        self.assertEquals(m.org, 'ACME and bro.')
-        self.assertEquals(m.date, '2015-10-20')
-        self.assertEquals(m.threat_level_id, 3)
-        self.assertEquals(m.info, 'AGNOSTIC PANDA')
-        self.assertEquals(m.published, 1)
-        self.assertEquals(m.analysis, 2)
-        self.assertEquals(m.timestamp, 1445434988)
-        self.assertEquals(m.distribution, 1)
-        self.assertEquals(m.orgc, 'ACME Corporation')
-        self.assertEquals(m.locked, 0)
-        self.assertEquals(m.publish_timestamp, 1445435155)
+        self.assertEqual(m.uuid, '56278fd8-f2c0-4907-bcca-594e0a3ac101')
+        self.assertEqual(m.id, 42)
+        self.assertEqual(m.org, 'ACME and bro.')
+        self.assertEqual(m.date, '2015-10-20')
+        self.assertEqual(m.threat_level_id, 3)
+        self.assertEqual(m.info, 'AGNOSTIC PANDA')
+        self.assertEqual(m.published, 1)
+        self.assertEqual(m.analysis, 2)
+        self.assertEqual(m.timestamp, 1445434988)
+        self.assertEqual(m.distribution, 1)
+        self.assertEqual(m.orgc, 'ACME Corporation')
+        self.assertEqual(m.locked, 0)
+        self.assertEqual(m.publish_timestamp, 1445435155)
 
     def test_good_xml_generation(self):
         company = 'ACME Corporation'
@@ -131,7 +131,7 @@ class MispEventTest(unittest.TestCase):
         m.org = company
         serialized_evt = m.to_xml()
         obj = MispEvent.from_xml(serialized_evt)
-        self.assertEquals(obj.org, company)
+        self.assertEqual(obj.org, company)
 
     def test_bad_xml(self):
         with self.assertRaises(lxml.etree.XMLSyntaxError):
@@ -141,7 +141,7 @@ class MispEventTest(unittest.TestCase):
         m = MispEvent()
         d = datetime.datetime.now()
         m.publish_timestamp = d
-        self.assertEquals(m.publish_timestamp, int(time.mktime(d.timetuple())))
+        self.assertEqual(m.publish_timestamp, int(time.mktime(d.timetuple())))
 
     def test_tags_in_good_xml(self):
         s = r"""<Event>
@@ -190,18 +190,18 @@ class MispEventTest(unittest.TestCase):
 </Event>
 """
         m = MispEvent.from_xml(s)
-        self.assertEquals(m.uuid, '56278fd8-f2c0-4907-bcca-594e0a3ac101')
-        self.assertEquals(m.id, 42)
-        self.assertEquals(m.org, 'ACME and bro.')
-        self.assertEquals(m.date, '2015-10-20')
-        self.assertEquals(m.threat_level_id, 3)
-        self.assertEquals(m.info, 'AGNOSTIC PANDA')
-        self.assertEquals(m.published, 1)
-        self.assertEquals(m.analysis, 2)
-        self.assertEquals(m.timestamp, 1445434988)
-        self.assertEquals(m.distribution, 1)
-        self.assertEquals(m.orgc, 'ACME Corporation')
-        self.assertEquals(len(m.tags), 3)
+        self.assertEqual(m.uuid, '56278fd8-f2c0-4907-bcca-594e0a3ac101')
+        self.assertEqual(m.id, 42)
+        self.assertEqual(m.org, 'ACME and bro.')
+        self.assertEqual(m.date, '2015-10-20')
+        self.assertEqual(m.threat_level_id, 3)
+        self.assertEqual(m.info, 'AGNOSTIC PANDA')
+        self.assertEqual(m.published, 1)
+        self.assertEqual(m.analysis, 2)
+        self.assertEqual(m.timestamp, 1445434988)
+        self.assertEqual(m.distribution, 1)
+        self.assertEqual(m.orgc, 'ACME Corporation')
+        self.assertEqual(len(m.tags), 3)
 
 
 class MispTagTest(unittest.TestCase):
@@ -210,11 +210,11 @@ class MispTagTest(unittest.TestCase):
         <Tag><id>3</id><name>TLP:GREEN</name><colour>#04cc18</colour><exportable>1</exportable><org_id>0</org_id></Tag>
         """
         tag = MispTag.from_xml(s)
-        self.assertEquals(tag.id, 3)
-        self.assertEquals(tag.name, "TLP:GREEN")
-        self.assertEquals(tag.colour, "#04cc18")
-        self.assertEquals(tag.exportable, True)
-        self.assertEquals(tag.org_id, 0)
+        self.assertEqual(tag.id, 3)
+        self.assertEqual(tag.name, "TLP:GREEN")
+        self.assertEqual(tag.colour, "#04cc18")
+        self.assertEqual(tag.exportable, True)
+        self.assertEqual(tag.org_id, 0)
 
 
 class MispAttrTest(unittest.TestCase):
@@ -236,16 +236,16 @@ class MispAttrTest(unittest.TestCase):
         a = MispAttribute.from_xml(s)
         s = a.to_xml()
         a = MispAttribute.from_xml(s)
-        self.assertEquals(a.id, 87183)
-        self.assertEquals(a.type, 'md5')
-        self.assertEquals(a.category, 'Payload delivery')
-        self.assertEquals(a.to_ids, 1)
-        self.assertEquals(a.uuid, '56c577ed-94e0-4446-a639-40200a3ac101')
-        self.assertEquals(a.event_id, 42)
-        self.assertEquals(a.distribution, 5)
-        self.assertEquals(a.timestamp, 1445434872)
-        self.assertEquals(a.comment, 'loooool')
-        self.assertEquals(a.value, 'a283e768fa12ef33087f07b01f82d6dd')
+        self.assertEqual(a.id, 87183)
+        self.assertEqual(a.type, 'md5')
+        self.assertEqual(a.category, 'Payload delivery')
+        self.assertEqual(a.to_ids, 1)
+        self.assertEqual(a.uuid, '56c577ed-94e0-4446-a639-40200a3ac101')
+        self.assertEqual(a.event_id, 42)
+        self.assertEqual(a.distribution, 5)
+        self.assertEqual(a.timestamp, 1445434872)
+        self.assertEqual(a.comment, 'loooool')
+        self.assertEqual(a.value, 'a283e768fa12ef33087f07b01f82d6dd')
 
     def test_from_xml(self):
         s = r"""<Attribute>
@@ -263,16 +263,16 @@ class MispAttrTest(unittest.TestCase):
     <ShadowAttribute/>
   </Attribute>"""
         a = MispAttribute.from_xml(s)
-        self.assertEquals(a.id, 87183)
-        self.assertEquals(a.type, 'md5')
-        self.assertEquals(a.category, 'Payload delivery')
-        self.assertEquals(a.to_ids, 1)
-        self.assertEquals(a.uuid, '56c577ed-94e0-4446-a639-40200a3ac101')
-        self.assertEquals(a.event_id, 42)
-        self.assertEquals(a.distribution, 5)
-        self.assertEquals(a.timestamp, 1445434872)
-        self.assertEquals(a.comment, 'loooool')
-        self.assertEquals(a.value, 'a283e768fa12ef33087f07b01f82d6dd')
+        self.assertEqual(a.id, 87183)
+        self.assertEqual(a.type, 'md5')
+        self.assertEqual(a.category, 'Payload delivery')
+        self.assertEqual(a.to_ids, 1)
+        self.assertEqual(a.uuid, '56c577ed-94e0-4446-a639-40200a3ac101')
+        self.assertEqual(a.event_id, 42)
+        self.assertEqual(a.distribution, 5)
+        self.assertEqual(a.timestamp, 1445434872)
+        self.assertEqual(a.comment, 'loooool')
+        self.assertEqual(a.value, 'a283e768fa12ef33087f07b01f82d6dd')
 
     def test_bad_category(self):
         attr = MispAttribute()
@@ -297,27 +297,51 @@ class MispAttrTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             attr.type = 'foobar'
 
-        valid_types = ['md5', 'sha1', 'sha256', 'filename', 'pdb',
-            'filename|md5', 'filename|sha1', 'filename|sha256', 'ip-src',
-            'ip-dst', 'hostname', 'domain', 'domain|ip', 'email-src', 'email-dst',
-            'email-subject', 'email-attachment', 'url', 'http-method', 'user-agent',
-            'regkey', 'regkey|value', 'AS', 'snort', 'pattern-in-file',
-            'pattern-in-traffic', 'pattern-in-memory', 'yara', 'vulnerability',
-            'attachment', 'malware-sample', 'link', 'comment', 'text', 'other',
-            'named pipe', 'mutex', 'target-user', 'target-email', 'target-machine',
-            'target-org', 'target-location', 'target-external', 'btc', 'iban',
-            'bic', 'bank-account-nr', 'aba-rtn', 'bin', 'cc-number', 'prtn',
-            'threat-actor', 'campaign-name', 'campaign-id', 'malware-type',
-            'uri', 'authentihash', 'ssdeep', 'imphash', 'pehash', 'sha224',
-            'sha384', 'sha512', 'sha512/224', 'sha512/256', 'tlsh',
-            'filename|authentihash', 'filename|ssdeep', 'filename|imphash',
-            'filename|pehash', 'filename|sha224', 'filename|sha384',
-            'filename|sha512', 'filename|sha512/224', 'filename|sha512/256',
-            'filename|tlsh', 'windows-scheduled-task', 'windows-service-name',
-            'windows-service-displayname', 'whois-registrant-email',
-            'whois-registrant-phone', 'whois-registrant-name', 'whois-registrar',
-            'whois-creation-date', 'targeted-threat-index', 'mailslot', 'pipe',
-            'ssl-cert-attributes', 'x509-fingerprint-sha1', 'ip-src|port']
+        valid_types = ['AS', 'aba-rtn', 'anonymised', 'attachment',
+                'authentihash', 'bank-account-nr', 'bic', 'bin', 'boolean',
+                'bro', 'btc', 'campaign-id', 'campaign-name', 'cc-number',
+                'cdhash', 'comment', 'cookie', 'cortex', 'counter',
+                'country-of-residence', 'cpe', 'date-of-birth', 'datetime',
+                'dns-soa-email', 'domain', 'domain|ip', 'email-attachment',
+                'email-body', 'email-dst', 'email-dst-display-name',
+                'email-header', 'email-message-id', 'email-mime-boundary',
+                'email-reply-to', 'email-src', 'email-src-display-name',
+                'email-subject', 'email-thread-index', 'email-x-mailer',
+                'filename', 'filename|authentihash', 'filename|impfuzzy',
+                'filename|imphash', 'filename|md5', 'filename|pehash',
+                'filename|sha1', 'filename|sha224', 'filename|sha256',
+                'filename|sha384', 'filename|sha512', 'filename|sha512/224',
+                'filename|sha512/256', 'filename|ssdeep', 'filename|tlsh',
+                'first-name', 'float', 'frequent-flyer-number', 'gender',
+                'gene', 'github-organisation', 'github-repository',
+                'github-username', 'hassh-md5', 'hasshserver-md5', 'hex',
+                'hostname', 'hostname|port', 'http-method', 'iban',
+                'identity-card-number', 'impfuzzy', 'imphash', 'ip-dst',
+                'ip-dst|port', 'ip-src', 'ip-src|port', 'issue-date-of-the-visa',
+                'ja3-fingerprint-md5', 'jabber-id', 'last-name', 'link',
+                'mac-address', 'mac-eui-64', 'malware-sample', 'malware-type',
+                'md5', 'middle-name', 'mime-type', 'mobile-application-id',
+                'mutex', 'named', 'nationality', 'other',
+                'passenger-name-record-locator-number', 'passport-country',
+                'passport-expiration', 'passport-number', 'pattern-in-file',
+                'pattern-in-memory', 'pattern-in-traffic', 'payment-details',
+                'pdb', 'pehash', 'phone-number', 'place-of-birth',
+                'place-port-of-clearance', 'place-port-of-onward-foreign-destination',
+                'place-port-of-original-embarkation', 'port', 'primary-residence',
+                'prtn', 'redress-number', 'regkey', 'regkey|value', 'sha1',
+                'sha224', 'sha256', 'sha384', 'sha512', 'sha512/224',
+                'sha512/256', 'sigma', 'size-in-bytes', 'snort',
+                'special-service-request', 'ssdeep', 'stix2-pattern',
+                'target-email', 'target-external', 'target-location',
+                'target-machine', 'target-org', 'target-user', 'text',
+                'threat-actor', 'tlsh', 'travel-details', 'twitter-id', 'uri',
+                'url', 'user-agent', 'visa-number', 'vulnerability',
+                'whois-creation-date', 'whois-registrant-email', 'whois-registrant-name',
+                'whois-registrant-org', 'whois-registrant-phone', 'whois-registrar',
+                'windows-scheduled-task', 'windows-service-displayname',
+                'windows-service-name', 'x509-fingerprint-md5', 'x509-fingerprint-sha1',
+                'x509-fingerprint-sha256', 'xmr', 'yara', 'zeek']
+
         for t in valid_types:
             attr.type = t
 
@@ -326,24 +350,24 @@ class MispServerTest(unittest.TestCase):
     def disabled_test_get_event(self):
         m = MispServer()
         evt = m.events.get(TEST_EVT_ID)
-        self.assertEquals(evt.id, TEST_EVT_ID)
+        self.assertEqual(evt.id, TEST_EVT_ID)
 
     def disabled_test_search_event(self):
         m = MispServer()
         evt=m.events.search(value=TEST_NEEDLE)
-        self.assertEquals(len(evt), 1)
-        self.assertEquals(evt[0].id, TEST_EVT_ID)
+        self.assertEqual(len(evt), 1)
+        self.assertEqual(evt[0].id, TEST_EVT_ID)
         ok=False
         for event in evt:
             for attr in event.attributes:
                 if attr.value == TEST_NEEDLE:
                     ok=True
                     break
-        self.assertEquals(ok, True)
+        self.assertEqual(ok, True)
 
     def disabled_test_last(self):
         m = MispServer()
-        self.assertEquals(m.events.last().id, TEST_LAST_EVT_ID)
+        self.assertEqual(m.events.last().id, TEST_LAST_EVT_ID)
 
     def disabled_test_create_event(self):
         m = MispServer()
@@ -383,14 +407,14 @@ class MispServerTest(unittest.TestCase):
 class MispTransportErrorTest(unittest.TestCase):
     def test_python3_bug(self):
         err = MispTransportError('POST %s: returned status=%d', '/stuff', 404)
-        self.assertEquals(err.path, '/stuff')
-        self.assertEquals(err.status_code, 404)
+        self.assertEqual(err.path, '/stuff')
+        self.assertEqual(err.status_code, 404)
         try:
-            self.assertEquals(err[2], 404)
+            self.assertEqual(err[2], 404)
         except TypeError:
             # That's ok it means you are testing with python 3
             pass
-        self.assertEquals(err.args[2], 404)
+        self.assertEqual(err.args[2], 404)
 
 
 class MispObjectTest(unittest.TestCase):
@@ -450,15 +474,15 @@ class MispObjectTest(unittest.TestCase):
       <ShadowAttribute/>
     </Attribute>
   </Object>"""
-    
+
         obj = MispObject.from_xml(xml)
-        self.assertEquals(obj.id, 1234)
-        self.assertEquals(obj.name, "file")
-        self.assertEquals(obj.comment, "Hello")
-        self.assertEquals(obj.event_id, 9876)
-        self.assertEquals(obj.timestamp, 1553763183)
-        self.assertEquals(obj.meta_category, "file")
-        self.assertEquals(len(obj.attributes), 2)
+        self.assertEqual(obj.id, 1234)
+        self.assertEqual(obj.name, "file")
+        self.assertEqual(obj.comment, "Hello")
+        self.assertEqual(obj.event_id, 9876)
+        self.assertEqual(obj.timestamp, 1553763183)
+        self.assertEqual(obj.meta_category, "file")
+        self.assertEqual(len(obj.attributes), 2)
 
 
 if __name__ == '__main__':
