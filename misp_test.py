@@ -246,6 +246,7 @@ class MispAttrTest(unittest.TestCase):
         self.assertEquals(a.timestamp, 1445434872)
         self.assertEquals(a.comment, 'loooool')
         self.assertEquals(a.value, 'a283e768fa12ef33087f07b01f82d6dd')
+        self.assertEqual(a.value.__class__, str)
 
     def test_from_xml(self):
         s = r"""<Attribute>
@@ -450,7 +451,7 @@ class MispObjectTest(unittest.TestCase):
       <ShadowAttribute/>
     </Attribute>
   </Object>"""
-    
+
         obj = MispObject.from_xml(xml)
         self.assertEquals(obj.id, 1234)
         self.assertEquals(obj.name, "file")
