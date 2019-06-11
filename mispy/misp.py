@@ -1376,9 +1376,12 @@ class MispAttribute(MispBaseObject):
         if obj.tag.lower() != 'attribute':
             raise ValueError('Invalid Attribute XML')
         attr = MispAttribute()
-        for field in ['uuid', 'distribution', 'type', 'category',
-                      'timestamp', 'to_ids', 'comment', 'value',
-                      'event_id', 'id']:
+        # String fields
+        for field in ['uuid', 'type', 'category', 'comment', 'value']:
+            val = getattr(obj, field)
+            setattr(attr, field, str(val))
+        # Integer fields
+        for field in ['distribution', 'to_ids', 'event_id', 'id', 'timestamp']:
             val = getattr(obj, field)
             setattr(attr, field, val)
         return attr
