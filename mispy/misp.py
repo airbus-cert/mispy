@@ -31,14 +31,16 @@ import time
 import datetime
 import uuid
 import os
-import lxml
-from lxml import objectify
+import lxml  # type:ignore
+from lxml import objectify  # type:ignore
 import requests
 import json
 
+from typing import Any, Iterator, Optional, List
+
 # Fix Python 3.x.
 try:
-    UNICODE_EXISTS = bool(type(unicode))
+    UNICODE_EXISTS = bool(type(unicode))  # type:ignore
 except NameError:
     unicode = lambda s: str(s)
 
@@ -637,7 +639,7 @@ class MispEvent(MispBaseObject):
         self._publish_timestamp = val
 
     @staticmethod
-    def from_xml(s):
+    def from_xml(s: str):
         """
         Static method converting a serialized XML string into a :class:`MispEvent` object.
 
@@ -771,7 +773,7 @@ class MispServer(object):
     def _absolute_url(self, path):
         return self.url + path
 
-    def POST(self, path, body, xml=True):
+    def POST(self, path: str, body: Any, xml=True) -> bytes:
         """
         Raw POST to the MISP server
 
@@ -793,7 +795,7 @@ class MispServer(object):
             raise MispTransportError('POST %s: returned status=%d', path, resp.status_code)
         return resp.content
 
-    def GET(self, path):
+    def GET(self, path: str) -> bytes:
         """
         Raw GET to the MISP server
 
@@ -806,7 +808,7 @@ class MispServer(object):
             raise MispTransportError('GET %s: returned status=%d', path, resp.status_code)
         return resp.content
 
-    def tag(self, attr, tag):
+    def tag(self, attr, tag: str) -> bool:
         """
         Add a tag to an attribute.
 
@@ -820,9 +822,9 @@ class MispServer(object):
             'tag': tag
         }
         raw = self.POST('/tags/attachTagToObject/', data, xml=False)
-        return 'successfully' in raw
+        return b'successfully' in raw
 
-    def download(self, attr):
+    def download(self, attr) -> bytes:
         """
         Download an attribute attachment
         (if type is malware-sample or attachment only)
@@ -842,7 +844,7 @@ class MispServer(object):
         def __init__(self, server):
             self.server = server
 
-        def get(self, shadowattributeid):
+        def get(self, shadowattributeid: int):
             """
             Fetches a shadow attribute from the MISP server.
 
@@ -854,7 +856,7 @@ class MispServer(object):
             response = objectify.fromstring(raw)
             return MispShadowAttribute.from_xml_object(response.ShadowAttribute)
 
-        def add(self, event, shadowattribute):
+        def add(self, event: MispEvent, shadowattribute):
             """
             Adds a shadow attribute to an event and send it to the MISP server.
 
@@ -942,7 +944,7 @@ class MispServer(object):
         def __init__(self, server):
             self.server = server
 
-        def get(self, id):
+        def get(self, id: int):
             """
             Fetches an attribute from the MISP server.
 
@@ -951,7 +953,7 @@ class MispServer(object):
 
             """
             response = self.server.GET('/attributes/%d' % id)
-            response = objectify.fromstring(raw)
+            response = objectify.fromstring(response.content)
             return MispAttribute.from_xml_object(response.Attribute)
 
         def update(self, attr):
@@ -972,8 +974,15 @@ class MispServer(object):
             attr.timestamp = datetime.datetime.now()
             raw = attr.to_xml()
             raw = self.server.POST('/attributes/%d' % attr.id, raw)
+            return MispAttribute.from_xml(raw)
 
-        def search(self, value=None, type=None, category=None, tag=None, fromd=None, tod=None, last=None):
+        def search(self, value: Optional[str] = None,
+                   type: Optional[str] = None,
+                   category: Optional[str] = None,
+                   tag: Optional[str] = None,
+                   fromd: Optional[str] = None,
+                   tod: Optional[str] = None,
+                   last: Optional[str] = None) -> List[MispEvent]:
             """
             Searches an attribute on the MISP server
 
@@ -1085,7 +1094,7 @@ class MispServer(object):
         def __init__(self, server):
             self.server = server
 
-        def get(self, evtid):
+        def get(self, evtid: int) -> MispEvent:
             """Fetches an event from the MISP server.
 
             :param evtid: Event ID (as an integer)
@@ -1099,7 +1108,7 @@ class MispServer(object):
             response = objectify.fromstring(raw_evt)
             return MispEvent.from_xml_object(response.Event)
 
-        def update(self, event):
+        def update(self, event: MispEvent) -> None:
             """Modifies an event and propagate a change to the MISP server.
 
             It will update the event's timestamp and reset the publishing state
@@ -1118,7 +1127,7 @@ class MispServer(object):
             raw_evt = event.to_xml()
             self.server.POST('/events/%d' % event.id, raw_evt)
 
-        def publish(self, event, with_email=False):
+        def publish(self, event: MispEvent, with_email: Optional[bool]=False) -> bytes:
             if type(event) is MispEvent:
                 evtid = event.id
             elif type(event) is int:
@@ -1129,7 +1138,7 @@ class MispServer(object):
                 uri = '/events/publish/%d' % (evtid)
             return self.server.POST(uri, '')
 
-        def put(self, event):
+        def put(self, event: MispEvent) -> None:
             """Creates an event on the MISP server.
 
             It will find an Event ID for you.
@@ -1143,14 +1152,14 @@ class MispServer(object):
             raw_evt = event.to_xml()
             self.server.POST('/events', raw_evt)
 
-        def last(self):
+        def last(self) -> MispEvent:
             """Returns the last event published on the MISP server.
 
             :returns: Last :class:`MispEvent` object published
             """
             return self.list(limit=1, direction='desc')[0]
 
-        def list(self, limit=10, sort='date', direction='asc'):
+        def list(self, limit: int=10, sort: Optional[str]='date', direction: Optional[str] ='asc') -> List[MispEvent]:
             """List events on the MISP servers according to the given criteria.
 
             :param limit: Maximum number of events to fetch
@@ -1167,7 +1176,7 @@ class MispServer(object):
 
         def search(self, attr_type=None, tags=None, value=None,
                   category=None, org=None, date_from=None, date_to=None,
-                  last=None, quickfilter=None, evtid=None):
+                  last=None, quickfilter=None, evtid=None) -> List[MispEvent]:
             """Search events on the MISP server.
 
             Searching criteria:
@@ -1280,35 +1289,35 @@ class MispAttribute(MispBaseObject):
         self.uuid = str(uuid.uuid1())
 
     @property
-    def id(self):
+    def id(self) -> int:
         return self._id or 0
 
     @id.setter
-    def id(self, value):
+    def id(self, value: int) -> None:
         self._id = value
 
     @property
-    def comment(self):
+    def comment(self) -> str:
         return self._comment or ''
 
     @comment.setter
-    def comment(self, value):
+    def comment(self, value: str):
         self._comment = value
 
     @property
-    def event_id(self):
+    def event_id(self) -> int:
         return self._event_id
 
     @event_id.setter
-    def event_id(self, value):
+    def event_id(self, value: int) -> None:
         self._event_id = value
 
     @property
-    def value(self):
+    def value(self) -> str:
         return self._value
 
     @value.setter
-    def value(self, value):
+    def value(self, value: str) -> None:
         """The value of the IOC.
 
         .. todo::
@@ -1318,17 +1327,17 @@ class MispAttribute(MispBaseObject):
         self._value = value
 
     @property
-    def category(self):
+    def category(self) -> str:
         return self._category
 
     @category.setter
-    def category(self, value):
+    def category(self, value: str):
         if value not in attr_categories:
             raise ValueError('Invalid category for an attribute')
         self._category = value
 
     @property
-    def type(self):
+    def type(self) -> str:
         """Getter/setter
 
         The setter will verify that the given value is valid.
@@ -1336,19 +1345,19 @@ class MispAttribute(MispBaseObject):
         return self._type
 
     @type.setter
-    def type(self, value):
+    def type(self, value: str):
         if value not in attr_types:
             raise ValueError('Invalid type for an attribute: ' + str(value))
         self._type = value
 
     @property
-    def to_ids(self):
+    def to_ids(self) -> bool:
         """Boolean variable
         """
-        return self._to_ids or 0
+        return self._to_ids
 
     @to_ids.setter
-    def to_ids(self, value):
+    def to_ids(self, value: bool):
         self._to_ids = int(value)
 
     @property
@@ -1356,7 +1365,7 @@ class MispAttribute(MispBaseObject):
         return None
 
     @staticmethod
-    def from_xml(s):
+    def from_xml(s: str):
         """
         Static method converting a serialized XML string into a :class:`MispAttribute` object.
 
