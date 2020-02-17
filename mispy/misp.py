@@ -10,6 +10,7 @@
     :license: Apache Licence, Version 2.0
 
 """
+
 #    This file is part of python-misp.
 #
 #   Copyright 2015 Nicolas Bareil <nicolas.bareil@airbus.com>
